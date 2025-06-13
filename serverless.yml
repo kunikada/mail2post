@@ -1,0 +1,192 @@
+service: mail2post
+
+frameworkVersion: '4'
+
+provider:
+  name: aws
+  runtime: nodejs22.x
+  region: ${self:custom.config.aws.region}
+  stage: ${opt:stage, 'dev'}
+  environment:
+    NODE_ENV: ${opt:stage, 'dev'}
+  tags:
+    Project: mail2post
+    Stage: ${self:provider.stage}
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - ses:*
+            - s3:*
+            - lambda:*
+          Resource: '*'
+
+custom:
+  config: ${file(serverless.config.cjs):loadServerlessConfig.${self:provider.stage}}
+  # 環境別設定から動的に抽出された値
+  bucketName: ${self:custom.config.aws.bucketName}
+
+build:
+  esbuild:
+    bundle: true
+    minify: false
+    sourcemap: true
+    exclude: ['**/*.test.ts']
+    external:
+      [
+        '@aws-sdk/*',
+        'aws-sdk',
+        'stream',
+        'util',
+        'fs',
+        'path',
+        'crypto',
+        'os',
+        'http',
+        'https',
+        'url',
+        'querystring',
+        'assert',
+        'buffer',
+        'events',
+        'net',
+        'tls',
+        'dns',
+        'dgram',
+        'child_process',
+        'cluster',
+        'zlib',
+        'readline',
+        'timers',
+        'v8',
+        'vm',
+        'worker_threads',
+      ]
+    format: 'esm'
+    target: 'node22'
+    platform: 'node'
+
+package:
+  individually: true
+  patterns:
+    - '!node_modules/**'
+    - '!.git/**'
+    - '!.github/**'
+    - '!tests/**'
+    - '!docs/**'
+    - '!.vscode/**'
+    - '!coverage/**'
+    - '!.build/**'
+    - '!.devcontainer/**'
+    - 'config/*.json'
+
+functions:
+  processEmail:
+    handler: src/index.handler
+    timeout: ${self:custom.config.system.lambdaTimeout}
+    memorySize: ${self:custom.config.system.lambdaMemorySize}
+    environment:
+      SES_BUCKET_NAME: ${self:custom.config.aws.bucketName}
+      CONFIG_BUCKET_NAME: ${self:custom.config.aws.bucketName}
+      ROUTES_CONFIG_SOURCE: ${self:custom.config.system.routesConfigSource}
+      LOG_LEVEL: ${self:custom.config.system.logLevel}
+      # 環境変数を直接Lambdaに渡す
+      MAIL2POST_AWS_REGION: ${self:custom.config.aws.region}
+      MAIL2POST_AWS_BUCKET_NAME: ${self:custom.config.aws.bucketName}
+      MAIL2POST_LOG_LEVEL: ${self:custom.config.system.logLevel}
+      MAIL2POST_LAMBDA_MEMORY_SIZE: ${self:custom.config.system.lambdaMemorySize}
+      MAIL2POST_LAMBDA_TIMEOUT: ${self:custom.config.system.lambdaTimeout}
+      MAIL2POST_ROUTES_CONFIG_SOURCE: ${self:custom.config.system.routesConfigSource}
+      MAIL2POST_NOTIFICATION_EMAIL: ${self:custom.config.system.notificationEmail}
+
+resources:
+  Resources:
+    # S3バケット
+    SESEmailBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:custom.bucketName}
+        VersioningConfiguration:
+          Status: Enabled
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: true
+          BlockPublicPolicy: false
+          IgnorePublicAcls: true
+          RestrictPublicBuckets: false
+        Tags:
+          - Key: Project
+            Value: mail2post
+          - Key: Stage
+            Value: ${self:provider.stage}
+
+    # S3バケットポリシー（SESからの書き込み許可）
+    SESEmailBucketPolicy:
+      Type: AWS::S3::BucketPolicy
+      Properties:
+        Bucket:
+          Ref: SESEmailBucket
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: ses.amazonaws.com
+              Action:
+                - s3:PutObject
+                - s3:GetBucketAcl
+              Resource:
+                - Fn::Join:
+                    - ''
+                    - - Fn::GetAtt:
+                          - SESEmailBucket
+                          - Arn
+                      - '/*'
+                - Fn::GetAtt:
+                    - SESEmailBucket
+                    - Arn
+              Condition:
+                StringEquals:
+                  'aws:Referer':
+                    Ref: 'AWS::AccountId'
+
+    # SES受信ルールセット
+    SESReceiptRuleSet:
+      Type: AWS::SES::ReceiptRuleSet
+      Properties:
+        RuleSetName: mail2post-${self:provider.stage}-ruleset
+
+    # SES受信ルール
+    SESReceiptRule:
+      Type: AWS::SES::ReceiptRule
+      DependsOn:
+        - SESEmailBucketPolicy
+      Properties:
+        RuleSetName:
+          Ref: SESReceiptRuleSet
+        Rule:
+          Name: mail2post-${self:provider.stage}-rule
+          Enabled: true
+          Recipients: ${self:custom.config.ses.recipients}
+          Actions:
+            - S3Action:
+                BucketName:
+                  Ref: SESEmailBucket
+                ObjectKeyPrefix: emails/
+            - LambdaAction:
+                FunctionArn:
+                  Fn::GetAtt:
+                    - ProcessEmailLambdaFunction
+                    - Arn
+                InvocationType: Event
+
+    # Lambda関数にSESからの呼び出しを許可
+    LambdaInvokePermission:
+      Type: AWS::Lambda::Permission
+      Properties:
+        FunctionName:
+          Ref: ProcessEmailLambdaFunction
+        Action: lambda:InvokeFunction
+        Principal: ses.amazonaws.com
+        SourceAccount:
+          Ref: AWS::AccountId

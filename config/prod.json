@@ -1,0 +1,37 @@
+{
+  "aws": {
+    "region": "us-west-2",
+    "bucketName": "test-bucket"
+  },
+  "routes": [
+    {
+      "emailAddress": "test@example.com",
+      "postEndpoint": "https://api.example.com/webhook",
+      "format": "json"
+    }
+  ],
+  "defaults": {
+    "format": "json",
+    "retryCount": 3,
+    "retryDelay": 1000,
+    "transformationOptions": {
+      "htmlMode": "text",
+      "inlineImages": "ignore",
+      "maxSize": 10485760,
+      "attachmentStore": false,
+      "allowedSenders": []
+    },
+    "auth": {
+      "type": "none"
+    },
+    "headers": {
+      "X-Source": "mail2post"
+    }
+  },
+  "system": {
+    "logLevel": "info",
+    "lambdaMemorySize": 128,
+    "lambdaTimeout": 30,
+    "notificationEmail": ""
+  }
+}

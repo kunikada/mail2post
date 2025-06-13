@@ -1,0 +1,11 @@
+{
+  "smtp": {
+    "host": "smtp.sendgrid.net",
+    "port": 587,
+    "auth": {
+      "user": "apikey",
+      "pass": "YOUR_SENDGRID_API_KEY"
+    }
+  },
+  "description": "統合テスト専用のSendGrid SMTP設定 - 実際のAPI Keyに置き換えてください"
+}

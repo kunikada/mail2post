@@ -1,0 +1,72 @@
+{
+  "aws": {
+    "region": "ap-northeast-1",
+    "bucketName": "mail2post-dev"
+  },
+  "routes": [
+    {
+      "emailAddress": "test@mail2post.com",
+      "postEndpoint": "https://yvr2cify47.execute-api.us-east-1.amazonaws.com/test/webhook",
+      "format": "json",
+      "transformationOptions": {
+        "includeAttachments": true
+      }
+    },
+    {
+      "emailAddress": "info@mail2post.com",
+      "postEndpoint": "https://ueg0pk1qyb.execute-api.us-east-1.amazonaws.com/test/webhook",
+      "format": "json",
+      "transformationOptions": {
+        "includeAttachments": false
+      }
+    },
+    {
+      "emailAddress": "attachments@mail2post.com",
+      "postEndpoint": "http://wiremock:8080/webhook-attachments",
+      "format": "json",
+      "transformationOptions": {
+        "includeAttachments": true
+      }
+    },
+    {
+      "emailAddress": "no-attachments@mail2post.com",
+      "postEndpoint": "http://wiremock:8080/webhook-no-attachments",
+      "format": "json",
+      "transformationOptions": {
+        "includeAttachments": false
+      }
+    },
+    {
+      "emailAddress": "attachment-references@mail2post.com",
+      "postEndpoint": "http://wiremock:8080/webhook-attachment-refs",
+      "format": "json",
+      "transformationOptions": {
+        "attachmentReferences": true
+      }
+    }
+  ],
+  "defaults": {
+    "format": "json",
+    "retryCount": 3,
+    "retryDelay": 1000,
+    "transformationOptions": {
+      "htmlMode": "text",
+      "inlineImages": "ignore",
+      "maxSize": 10485760,
+      "attachmentStore": false,
+      "allowedSenders": []
+    },
+    "auth": {
+      "type": "none"
+    },
+    "headers": {
+      "X-Source": "mail2post"
+    }
+  },
+  "system": {
+    "logLevel": "debug",
+    "lambdaMemorySize": 128,
+    "lambdaTimeout": 30,
+    "notificationEmail": ""
+  }
+}

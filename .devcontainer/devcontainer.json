@@ -1,0 +1,35 @@
+// filepath: /home/kunikada/projects/mail2post/.devcontainer/devcontainer.json
+{
+  "name": "Mail2Post Development",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "app",
+  "workspaceFolder": "/workspace",
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "editor.codeActionsOnSave": {
+          "source.fixAll.eslint": "always"
+        },
+        "eslint.validate": [
+          "javascript",
+          "typescript"
+        ],
+        "prettier.requireConfig": true
+      },
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "amazonwebservices.aws-toolkit-vscode",
+        "redhat.vscode-yaml",
+        "vitest.explorer",
+        "mark-tucker.aws-cli-configure",
+        "devadvice.serverlessconsole",
+        "markis.code-coverage"
+      ]
+    }
+  },
+  "remoteUser": "node",
+  "postCreateCommand": "npm install && npm run build:types"
+}

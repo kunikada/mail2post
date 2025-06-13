@@ -1,0 +1,137 @@
+service: mail2post-test-api
+
+frameworkVersion: '4'
+
+provider:
+  name: aws
+  runtime: nodejs22.x
+  region: us-east-1
+  stage: test
+  environment:
+    NODE_ENV: test
+    TEST_BUCKET_NAME: mail2post-test-webhooks-${self:provider.stage}
+  tags:
+    Project: mail2post-test
+    Purpose: integration-testing
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - s3:PutObject
+            - s3:GetObject
+            - s3:DeleteObject
+          Resource:
+            - arn:aws:s3:::mail2post-test-webhooks-${self:provider.stage}/*
+        - Effect: Allow
+          Action:
+            - s3:ListBucket
+          Resource:
+            - arn:aws:s3:::mail2post-test-webhooks-${self:provider.stage}
+
+build:
+  esbuild:
+    bundle: true
+    minify: false
+    sourcemap: true
+    exclude: ['**/*.test.ts']
+    external: []
+
+package:
+  individually: true
+  patterns:
+    - '!node_modules/**'
+    - '!.git/**'
+    - '!.github/**'
+    - '!tests/**'
+    - '!docs/**'
+    - '!.vscode/**'
+    - '!coverage/**'
+    - '!.build/**'
+    - '!.devcontainer/**'
+
+functions:
+  webhookReceiver:
+    handler: src/test-api/webhook-receiver.handler
+    timeout: 29
+    memorySize: 128
+    events:
+      - http:
+          path: /webhook
+          method: post
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - X-Test-ID
+            allowCredentials: false
+      - http:
+          path: /webhook
+          method: get
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - X-Test-ID
+            allowCredentials: false
+      - http:
+          path: /webhook
+          method: options
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - X-Test-ID
+            allowCredentials: false
+
+resources:
+  Resources:
+    # テスト用Webhook データ保存バケット
+    TestWebhookBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: mail2post-test-webhooks-${self:provider.stage}
+        VersioningConfiguration:
+          Status: Enabled
+        LifecycleConfiguration:
+          Rules:
+            - Status: Enabled
+              ExpirationInDays: 7 # テストデータは7日で自動削除
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: true
+          BlockPublicPolicy: true
+          IgnorePublicAcls: true
+          RestrictPublicBuckets: true
+        Tags:
+          - Key: Project
+            Value: mail2post-test
+          - Key: Purpose
+            Value: webhook-testing
+
+  Outputs:
+    WebhookApiUrl:
+      Description: 'テスト用Webhook API エンドポイントURL'
+      Value:
+        Fn::Join:
+          - ''
+          - - 'https://'
+            - Ref: ApiGatewayRestApi
+            - '.execute-api.'
+            - Ref: 'AWS::Region'
+            - '.amazonaws.com/'
+            - ${self:provider.stage}
+            - '/webhook'
+      Export:
+        Name: mail2post-test-webhook-api-url
+
+    WebhookApiId:
+      Description: 'テスト用API Gateway ID'
+      Value: !Ref ApiGatewayRestApi
+      Export:
+        Name: mail2post-test-webhook-api-id
+
+    TestWebhookBucketName:
+      Description: 'テスト用Webhook データ保存バケット名'
+      Value: !Ref TestWebhookBucket
+      Export:
+        Name: mail2post-test-webhook-bucket-name

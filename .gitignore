@@ -1,0 +1,57 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build outputs
+.build/
+dist/
+build/
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.dev
+.env.prod
+.env.staging
+
+# Test configuration files (contains credentials)
+config/sendgrid.json
+
+# IDE
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# AWS
+.aws/
+
+# Serverless
+.serverless/
+
+# Coverage reports
+coverage/
+*.lcov
+
+# Logs
+logs/
+*.log
+
+# Test
+config/test-api.json
+**/temp/
+**/tmp/
+
+# Other
+*.tgz
+*.tar.gz
+.nyc_output/

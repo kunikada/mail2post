@@ -1,0 +1,47 @@
+{
+  "aws": {
+    "region": "us-east-1",
+    "bucketName": "mail2post-staging"
+  },
+  "routes": [
+    {
+      "emailAddress": "test@staging-mail2post.example.com",
+      "postEndpoint": "https://staging-webhook.example.com/test",
+      "format": "json",
+      "retryCount": 3,
+      "retryDelay": 1000
+    },
+    {
+      "emailAddress": "info@staging-mail2post.example.com",
+      "postEndpoint": "https://staging-webhook.example.com/info",
+      "format": "json",
+      "retryCount": 3,
+      "retryDelay": 1000
+    }
+  ],
+  "defaults": {
+    "format": "json",
+    "retryCount": 3,
+    "retryDelay": 1000,
+    "transformationOptions": {
+      "htmlMode": "text",
+      "inlineImages": "ignore",
+      "maxSize": 10485760,
+      "attachmentStore": false,
+      "allowedSenders": []
+    },
+    "auth": {
+      "type": "none"
+    },
+    "headers": {
+      "X-Source": "mail2post"
+    }
+  },
+  "system": {
+    "logLevel": "info",
+    "lambdaMemorySize": 128,
+    "lambdaTimeout": 30,
+    "routesConfigSource": "file",
+    "notificationEmail": ""
+  }
+}
