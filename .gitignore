@@ -19,8 +19,8 @@ build/
 .env.prod
 .env.staging
 
-# Test configuration files (contains credentials)
-config/sendgrid.json
+# Configuration files
+config/*.json
 
 # IDE
 .vscode/settings.json
@@ -55,3 +55,4 @@ config/test-api.json
 *.tgz
 *.tar.gz
 .nyc_output/
+config/prod.json

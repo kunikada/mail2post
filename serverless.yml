@@ -23,7 +23,7 @@ provider:
           Resource: '*'
 
 custom:
-  config: ${file(serverless.config.cjs):loadServerlessConfig.${self:provider.stage}}
+  config: ${file(serverless.config.cjs)}
   # 環境別設定から動的に抽出された値
   bucketName: ${self:custom.config.aws.bucketName}
 

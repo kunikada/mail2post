@@ -48,13 +48,18 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
  */
 async function handlePost(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
   const timestamp = new Date().toISOString();
-  const testId = event.headers['X-Test-ID'] || event.headers['x-test-id'] || 'unknown';
+  const mailProcessingId =
+    event.headers['X-Mail-Processing-ID'] || event.headers['x-mail-processing-id'];
   const sourceIp = event.requestContext.identity.sourceIp;
-  const requestId = event.requestContext.requestId;
+  const apiGatewayRequestId = event.requestContext.requestId;
+
+  // S3キーとしてはmailProcessingIdを優先、なければapiGatewayRequestIdを使用
+  const s3KeyId = mailProcessingId || apiGatewayRequestId;
 
   console.log('POSTリクエストを受信:', {
-    requestId,
-    testId,
+    apiGatewayRequestId,
+    mailProcessingId,
+    s3KeyId,
     timestamp,
     contentType: event.headers['Content-Type'] || event.headers['content-type'],
   });
@@ -62,15 +67,16 @@ async function handlePost(event: APIGatewayProxyEvent): Promise<APIGatewayProxyR
   // S3に保存するデータを構築
   const webhookData = {
     timestamp,
-    testId,
-    requestId,
+    mailProcessingId,
+    s3KeyId,
+    apiGatewayRequestId, // デバッグ用に両方のIDを保存
     method: event.httpMethod,
     path: event.path,
     sourceIp,
     headers: {
       'Content-Type': event.headers['Content-Type'] || event.headers['content-type'],
       'User-Agent': event.headers['User-Agent'] || event.headers['user-agent'],
-      'X-Test-ID': testId,
+      'X-Mail-Processing-ID': mailProcessingId,
     },
     queryStringParameters: event.queryStringParameters,
     body: event.body,
@@ -79,7 +85,7 @@ async function handlePost(event: APIGatewayProxyEvent): Promise<APIGatewayProxyR
   };
 
   // S3にデータを保存
-  const s3Key = `webhooks/${testId}/${requestId}.json`;
+  const s3Key = `webhooks/${s3KeyId}.json`;
 
   try {
     await s3Client.send(
@@ -89,8 +95,8 @@ async function handlePost(event: APIGatewayProxyEvent): Promise<APIGatewayProxyR
         Body: JSON.stringify(webhookData, null, 2),
         ContentType: 'application/json',
         Metadata: {
-          'test-id': testId,
-          'request-id': requestId,
+          'mail-processing-id': mailProcessingId || 'unknown',
+          's3-key-id': s3KeyId,
           timestamp: timestamp,
         },
       })
@@ -105,8 +111,8 @@ async function handlePost(event: APIGatewayProxyEvent): Promise<APIGatewayProxyR
       stored: {
         bucket: BUCKET_NAME,
         key: s3Key,
-        testId,
-        requestId,
+        mailProcessingId,
+        s3KeyId,
       },
       received: webhookData,
     };
@@ -128,65 +134,66 @@ async function handlePost(event: APIGatewayProxyEvent): Promise<APIGatewayProxyR
  * GETリクエストの処理：S3からデータを取得
  */
 async function handleGet(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
-  const testId = event.queryStringParameters?.testId;
-  const requestId = event.queryStringParameters?.requestId;
+  // X-Mail-Processing-IDをヘッダーまたはクエリパラメータから取得
+  const mailProcessingIdFromHeader =
+    event.headers['X-Mail-Processing-ID'] || event.headers['x-mail-processing-id'];
+  const mailProcessingIdFromQuery = event.queryStringParameters?.mailProcessingId;
 
-  if (!testId) {
+  // POSTと同じロジック：mailProcessingIdを使用
+  const s3KeyId = mailProcessingIdFromHeader || mailProcessingIdFromQuery;
+
+  if (!s3KeyId) {
     return {
       statusCode: 400,
       headers: getCorsHeaders(),
       body: JSON.stringify({
-        error: 'Missing required parameter: testId',
-        usage: 'GET /webhook?testId=<testId>&requestId=<requestId>',
+        error: 'Missing required parameter: X-Mail-Processing-ID',
+        usage: 'GET /webhook with X-Mail-Processing-ID header or ?mailProcessingId=<id>',
       }),
     };
   }
 
+  console.log('GETリクエストを受信:', {
+    mailProcessingIdFromHeader,
+    mailProcessingIdFromQuery,
+    s3KeyId,
+  });
+
   try {
-    if (requestId) {
-      // 特定のリクエストIDのデータを取得
-      const s3Key = `webhooks/${testId}/${requestId}.json`;
+    // POSTと同じS3キー構造でデータを取得
+    const s3Key = `webhooks/${s3KeyId}.json`;
 
-      try {
-        const response = await s3Client.send(
-          new GetObjectCommand({
-            Bucket: BUCKET_NAME,
-            Key: s3Key,
-          })
-        );
+    try {
+      const response = await s3Client.send(
+        new GetObjectCommand({
+          Bucket: BUCKET_NAME,
+          Key: s3Key,
+        })
+      );
 
-        const data = await response.Body?.transformToString('utf-8');
+      const data = await response.Body?.transformToString('utf-8');
 
-        return {
-          statusCode: 200,
-          headers: getCorsHeaders(),
-          body: data || '{}',
-        };
-      } catch (error: unknown) {
-        if (error && typeof error === 'object' && 'name' in error && error.name === 'NoSuchKey') {
-          return {
-            statusCode: 404,
-            headers: getCorsHeaders(),
-            body: JSON.stringify({
-              error: 'Webhook data not found',
-              testId,
-              requestId,
-            }),
-          };
-        }
-        throw error;
-      }
-    } else {
-      // testId配下の全ファイルリストを返す（簡易実装）
+      console.log(`S3からデータを取得しました: s3://${BUCKET_NAME}/${s3Key}`);
+
       return {
         statusCode: 200,
         headers: getCorsHeaders(),
-        body: JSON.stringify({
-          message: 'To get specific webhook data, provide both testId and requestId parameters',
-          usage: 'GET /webhook?testId=<testId>&requestId=<requestId>',
-          testId,
-        }),
+        body: data || '{}',
       };
+    } catch (error: unknown) {
+      if (error && typeof error === 'object' && 'name' in error && error.name === 'NoSuchKey') {
+        console.log(`S3にデータが見つかりませんでした: s3://${BUCKET_NAME}/${s3Key}`);
+        return {
+          statusCode: 404,
+          headers: getCorsHeaders(),
+          body: JSON.stringify({
+            error: 'Webhook data not found',
+            s3KeyId,
+            s3Key,
+          }),
+        };
+      }
+      throw error;
     }
   } catch (error) {
     console.error('GET処理エラー:', error);
@@ -212,7 +219,7 @@ function getCorsHeaders(): Record<string, string> {
   return {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type,X-Test-ID',
+    'Access-Control-Allow-Headers': 'Content-Type,X-Mail-Processing-ID',
     'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
   };
 }

@@ -74,7 +74,6 @@ function updateTestConfig(webhookUrl, apiId) {
       bucketName: bucketName || 'mail2post-test-webhooks-test',
       headers: {
         'Content-Type': 'application/json',
-        'X-Test-ID': '${TEST_ID}', // テスト実行時に置換される
       },
     },
     aws: {
@@ -157,7 +156,7 @@ async function main() {
     console.log('\n💡 ヒント:');
     console.log(`   - Webhook URLをテストで使用: ${webhookUrl}`);
     console.log('   - リクエスト/レスポンスの内容はLambdaログで確認できます');
-    console.log('   - テスト実行時は "X-Test-ID" ヘッダーを設定してください');
+    console.log('   - Mail2PostからのリクエストにはX-Mail-Processing-IDヘッダーが追加されます');
   } catch (error) {
     console.error('\n❌ セットアップに失敗しました:');
     console.error(error.message);

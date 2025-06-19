@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { promises as fs } from 'fs';
 import nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
+import { randomUUID } from 'crypto';
 
 describe('SESメール処理統合テスト (SendGrid)', () => {
   const FROM_EMAIL = 'sender@mail2post.com';
@@ -46,8 +47,8 @@ describe('SESメール処理統合テスト (SendGrid)', () => {
       throw new Error('ルート設定が見つかりません');
     }
 
-    // Webhook URLを設定
-    webhookUrl = testRoute.postEndpoint.replace('/webhook', '');
+    // Webhook URLを設定（postEndpointがすでに完全なWebhook URLなのでそのまま使用）
+    webhookUrl = testRoute.postEndpoint;
     console.log('Webhook URL:', webhookUrl);
 
     // nodemailerトランスポーターの作成（SendGrid SMTP）
@@ -73,87 +74,100 @@ describe('SESメール処理統合テスト (SendGrid)', () => {
     }
   });
 
-  it('SendGridでメール送信し、SES→Lambda→Webhook処理が正常に動作すること', async () => {
+  it('SendGridでメール送信し、X-Mail-Processing-IDでWebhookデータを取得できること', async () => {
     // 設定が正しく読み込まれているかチェック
     if (!testRoute) {
       throw new Error('テストルート設定が読み込まれていません');
     }
 
+    // テスト用の一意のMail Processing IDを生成
+    const mailProcessingId = randomUUID();
+    console.log('=== 統合テスト開始 ===');
+    console.log('テスト用Mail Processing ID:', mailProcessingId);
+    console.log('宛先メールアドレス:', testRoute.emailAddress);
+    console.log('Webhook URL:', webhookUrl);
+
     // テスト用のメール件名（テスト識別用）
     const testSubject = `テストメール ${testId}`;
-    const testTo = testRoute.emailAddress; // dev.jsonから取得
-    const requestId = `test-request-${testId}`;
+    const testTo = testRoute.emailAddress;
 
-    // メール送信
+    // メール送信（X-Mail-Processing-IDヘッダーを付加）
     const mailOptions = {
       from: FROM_EMAIL,
       to: testTo,
       subject: testSubject,
-      text: [
-        'これはSendGridから送信されたテストメールです。',
-        `テストID: ${testId}`,
-        `RequestID: ${requestId}`,
-        '',
-        'SendGrid → SES → Lambda → Webhook の統合テストです。',
-      ].join('\n'),
+      text: 'SendGrid → SES → Lambda → Webhook の統合テストです。',
       headers: {
-        'X-Test-ID': testId,
-        'X-Request-ID': requestId,
+        'X-Mail-Processing-ID': mailProcessingId,
       },
     };
 
     try {
       const info = await transporter.sendMail(mailOptions);
-      console.log('SendGridからメールが送信されました:', {
-        messageId: info.messageId,
-        response: info.response,
-      });
+      console.log('✅ SendGridからメールが送信されました');
+      console.log('メッセージID:', info.messageId);
+      console.log('送信先:', testTo);
+      console.log('X-Mail-Processing-ID:', mailProcessingId);
+      console.log('件名:', testSubject);
     } catch (error) {
       console.error('SendGridメール送信エラー:', error);
       throw error;
     }
 
-    // SESからLambda、Webhookへのリクエストまでしばらく待機
-    console.log('メール処理の完了を待機中...');
+    // メール処理の完了を待機
+    console.log('\n📨 メール処理の完了を待機中...');
+    console.log('待機時間: 15秒');
     await new Promise(resolve => setTimeout(resolve, 15000)); // 15秒待機
 
-    // Webhook APIのGETメソッドでデータを取得
-    // dev.jsonから取得したWebhook URLを使用
-    try {
-      const getResponse = await fetch(
-        `${webhookUrl}/webhook?testId=${testId}&requestId=${requestId}`
-      );
+    // GETメソッドでMail Processing IDを指定してWebhookデータを取得
+    console.log('\n🔍 Webhookデータの取得を開始...');
 
-      console.log('GET API Response Status:', getResponse.status);
+    // 最初のエンドポイントには -1 の通し番号が付与される
+    const endpointProcessingId = `${mailProcessingId}-1`;
+    console.log('GET URL:', `${webhookUrl}?mailProcessingId=${endpointProcessingId}`);
 
-      if (getResponse.ok) {
-        const savedData = await getResponse.json();
-        console.log('保存されたWebhookデータを取得しました:', {
-          timestamp: savedData.timestamp,
-          testId: savedData.testId,
-          requestId: savedData.requestId,
-          subject: savedData.subject,
-          bodyLength: savedData.body?.length || 0,
-        });
+    const getResponse = await fetch(`${webhookUrl}?mailProcessingId=${endpointProcessingId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
 
-        // データの検証
-        expect(savedData.testId).toBe(testId);
-        expect(savedData.subject).toBe(testSubject);
-        expect(savedData.from).toContain(FROM_EMAIL);
-        expect(savedData.to).toContain(testTo);
-        expect(savedData.body).toContain(`テストID: ${testId}`);
-        expect(savedData.headers?.['X-Test-ID']).toBe(testId);
-        expect(savedData.headers?.['X-Request-ID']).toBe(requestId);
+    console.log('Webhook GET Response Status:', getResponse.status);
+    console.log(
+      'Webhook GET Response URL:',
+      `${webhookUrl}?mailProcessingId=${endpointProcessingId}`
+    );
 
-        console.log('✅ SendGrid→SES→Lambda→Webhook→データ検証が全て正常に完了しました');
-      } else {
-        const errorText = await getResponse.text();
-        console.error('GET API Error Response:', errorText);
-        throw new Error(`GET API failed with status ${getResponse.status}: ${errorText}`);
-      }
-    } catch (fetchError) {
-      console.error('GET機能テストエラー:', fetchError);
-      throw fetchError;
+    // レスポンス内容を詳細にログ出力
+    if (!getResponse.ok) {
+      const errorText = await getResponse.text();
+      console.log('GET Error Response:', errorText);
     }
+
+    // GETが成功したことを確認
+    expect(getResponse.status).toBe(200);
+
+    const responseData = await getResponse.json();
+
+    // レスポンスデータの検証
+    expect(responseData).toBeDefined();
+    expect(responseData.mailProcessingId).toBe(endpointProcessingId);
+    expect(responseData.method).toBe('POST');
+    expect(responseData.headers['X-Mail-Processing-ID']).toBe(endpointProcessingId);
+
+    // メール内容がWebhookデータに含まれていることを確認
+    expect(responseData.body).toBeDefined();
+    const bodyData = JSON.parse(responseData.body);
+    expect(bodyData.subject).toBe(testSubject);
+
+    console.log('✅ メール送信とX-Mail-Processing-IDによるデータ取得が正常に完了しました');
+    console.log('取得したデータ:', {
+      mailProcessingId: responseData.mailProcessingId,
+      originalId: mailProcessingId,
+      timestamp: responseData.timestamp,
+      method: responseData.method,
+      bodyLength: responseData.bodyLength,
+    });
   }, 60000); // タイムアウトを60秒に設定
 });

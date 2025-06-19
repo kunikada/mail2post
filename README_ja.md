@@ -56,7 +56,11 @@ Mail2Post は、メールを受信して指定のURLにPOSTリクエストを送
 
 ### 設定・オプション
 
-設定は環境別のJSONファイル（`config/dev.json`、`config/staging.json`、`config/prod.json`）で管理されます。以下のような設定が可能です。
+設定は環境別のJSONファイル（`config/dev.json`、`config/staging.json`、`config/prod.json`）で管理されます。
+
+設定ファイルの詳細な構造や動的読み込みについては[アーキテクチャドキュメント](docs/architecture.md)を参照してください。
+
+以下のような設定が可能です。
 
 #### ルーティング設定（必須）
 
@@ -100,6 +104,14 @@ Mail2Post は、メールを受信して指定のURLにPOSTリクエストを送
       "format": "form"
     },
     {
+      "emailAddress": "alerts@mail2post.com",
+      "postEndpoint": "https://api.example.com/alerts",
+      "format": "json",
+      "transformationOptions": {
+        "contentSelection": "subject"
+      }
+    },
+    {
       "type": "slack",
       "emailAddress": "notifications@mail2post.com",
       "webhookUrl": "https://hooks.slack.com/services/XXX/YYY/ZZZ",
@@ -114,7 +126,8 @@ Mail2Post は、メールを受信して指定のURLにPOSTリクエストを送
       "htmlMode": "text",
       "inlineImages": "ignore",
       "maxSize": 10485760,
-      "attachmentStore": false
+      "attachmentStore": false,
+      "contentSelection": "full"
     }
   },
   "system": {
@@ -136,6 +149,12 @@ Mail2Post は、メールを受信して指定のURLにPOSTリクエストを送
 | `maxSize`         | 処理対象の最大メールサイズ（バイト）             | `10485760`（10MB） |
 | `attachmentStore` | 添付ファイルの保存（`true`/`false`）             | `false`            |
 | `allowedSenders`  | 許可する送信元の配列（空配列なら全て許可） | `[]`               |
+| `contentSelection` | POST送信する内容（`full`/`subject`/`body`）     | `full`             |
+
+**contentSelectionオプション詳細:**
+- `full`: メールの全ての情報（件名、本文、送信者、受信者、ヘッダーなど）
+- `subject`: 件名のみ
+- `body`: 本文のみ
 
 #### POSTリクエスト共通設定（オプション）
 

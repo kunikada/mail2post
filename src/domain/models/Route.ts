@@ -6,6 +6,7 @@ export type RouteFormat = 'json' | 'form' | 'raw';
 export type AuthType = 'none' | 'basic' | 'bearer';
 export type HtmlMode = 'text' | 'html' | 'both';
 export type InlineImagesMode = 'ignore' | 'base64' | 'urls';
+export type ContentSelection = 'full' | 'subject' | 'body';
 
 export class Route {
   private readonly email: string;
@@ -20,6 +21,7 @@ export class Route {
   private readonly htmlProcessing: HtmlMode;
   private readonly imageHandling: InlineImagesMode;
   private readonly sizeLimit?: number;
+  private readonly contentType: ContentSelection;
 
   constructor(props: {
     emailAddress: string;
@@ -34,6 +36,7 @@ export class Route {
     htmlMode?: HtmlMode;
     inlineImages?: InlineImagesMode;
     maxSize?: number;
+    contentSelection?: ContentSelection;
   }) {
     this.email = props.emailAddress;
     this.endpoint = props.postEndpoint;
@@ -46,6 +49,7 @@ export class Route {
     this.htmlProcessing = props.htmlMode || 'text';
     this.imageHandling = props.inlineImages || 'ignore';
     this.sizeLimit = props.maxSize;
+    this.contentType = props.contentSelection || 'full';
 
     // ヘッダーの変換
     this.requestHeaders = new Map<string, string>();
@@ -93,6 +97,10 @@ export class Route {
   }
   get maxSize(): number | undefined {
     return this.sizeLimit;
+  }
+
+  get contentSelection(): ContentSelection {
+    return this.contentType;
   }
 
   get headers(): Record<string, string> {
@@ -164,6 +172,7 @@ export class Route {
         htmlMode: this.htmlProcessing,
         inlineImages: this.imageHandling,
         maxSize: this.sizeLimit,
+        contentSelection: this.contentType,
       },
     };
   }

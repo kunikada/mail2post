@@ -42,6 +42,7 @@ export interface RouteConfig {
     htmlMode?: 'text' | 'html' | 'both';
     inlineImages?: 'ignore' | 'base64' | 'urls';
     maxSize?: number;
+    contentSelection?: 'full' | 'subject' | 'body';
   };
 }
 
@@ -79,6 +80,7 @@ export interface RouteData {
     htmlMode?: 'text' | 'html' | 'both';
     inlineImages?: 'ignore' | 'base64' | 'urls';
     maxSize?: number;
+    contentSelection?: 'full' | 'subject' | 'body';
   };
 }
 

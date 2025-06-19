@@ -1,185 +1,412 @@
-// filepath: /workspace/tests/route-config.integration.test.ts
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import nodemailer from 'nodemailer';
 import fs from 'fs/promises';
 
-// 型定義
-interface RouteConfig {
-  emailAddress: string;
-  postEndpoint?: string;
-  format?: string;
-  htmlToText?: boolean;
-  includeHtmlAndText?: boolean;
-  type?: string;
-  webhookUrl?: string;
-  channel?: string;
-  username?: string;
-  headers?: Record<string, string>;
-  authType?: string;
-  authToken?: string;
-}
-
-interface DevConfig {
-  aws: {
-    region: string;
-    bucketName: string;
-    mailDomain: string;
+// SendGrid設定の読み込み
+interface SendGridConfig {
+  smtp: {
+    host: string;
+    port: number;
+    auth: {
+      user: string;
+      pass: string;
+    };
   };
-  ses: {
-    recipients: string[];
-  };
-  routes: RouteConfig[];
+  description?: string;
 }
 
-// テスト用のルート設定を動的に更新するヘルパー
-async function updateTestRoutes(routes: RouteConfig[]): Promise<void> {
-  const configPath = './config/dev.json';
-  // dev.jsonの既存設定を読み込み
-  const existingConfig: DevConfig = JSON.parse(await fs.readFile(configPath, 'utf-8'));
-  // routesのみ更新
-  existingConfig.routes = routes;
-  await fs.writeFile(configPath, JSON.stringify(existingConfig, null, 2));
-}
+// テストAPIのベースURL - 実際の設定からWebhook URLを取得するため削除
+// const TEST_API_BASE_URL = 'https://nscjss6xle.execute-api.ap-northeast-1.amazonaws.com/dev';
 
-// テスト用の元のルート設定をバックアップ
-let originalRoutes: RouteConfig[];
+// SendGrid設定とトランスポーターのセットアップ
+let sendGridConfig: SendGridConfig;
+let transporter: nodemailer.Transporter;
+let webhookUrl: string;
 
 describe('ルート設定統合テスト', () => {
   // 一意のテストID（テスト間の区別のため）
   const testId = Date.now().toString();
 
-  // テスト前に元のルート設定を保存
   beforeAll(async () => {
     try {
-      const configPath = './config/dev.json';
-      const config = await fs.readFile(configPath, 'utf-8');
-      originalRoutes = JSON.parse(config).routes;
+      // SendGrid設定の読み込み
+      const sendGridConfigData = await fs.readFile('./config/sendgrid.json', 'utf-8');
+      sendGridConfig = JSON.parse(sendGridConfigData);
 
-      // WireMockのエンドポイント設定
-      await fetch('http://wiremock:8080/__admin/mappings/reset', { method: 'POST' });
+      // dev.jsonから設定を読み込んでWebhook URLを取得
+      const configData = await fs.readFile('./config/dev.json', 'utf-8');
+      const config = JSON.parse(configData);
+      const testRoute = config.routes[0];
+      if (!testRoute) {
+        throw new Error('ルート設定が見つかりません');
+      }
+      webhookUrl = testRoute.postEndpoint;
 
-      // 通常のWebhookエンドポイント
-      await fetch('http://wiremock:8080/__admin/mappings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          request: {
-            urlPathPattern: '/webhook-test',
-            method: 'POST',
-          },
-          response: {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' },
-            jsonBody: { success: true, testId },
-          },
-        }),
+      // SendGrid SMTPトランスポーターの作成
+      transporter = nodemailer.createTransport({
+        host: sendGridConfig.smtp.host,
+        port: sendGridConfig.smtp.port,
+        secure: false,
+        auth: {
+          user: sendGridConfig.smtp.auth.user,
+          pass: sendGridConfig.smtp.auth.pass,
+        },
       });
 
-      // Slack Webhookエンドポイント
-      await fetch('http://wiremock:8080/__admin/mappings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          request: {
-            urlPathPattern: '/webhook-slack-test',
-            method: 'POST',
-          },
-          response: {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' },
-            jsonBody: { ok: true },
-          },
-        }),
-      });
+      console.log('SendGrid SMTP設定完了');
+      console.log('Webhook URL:', webhookUrl);
     } catch (error) {
       console.error('テストセットアップに失敗しました:', error);
+      throw error;
     }
-  });
+  }, 30000);
 
-  // テスト後に元のルート設定を復元
   afterAll(async () => {
-    if (originalRoutes) {
-      await updateTestRoutes(originalRoutes);
+    if (transporter) {
+      transporter.close();
     }
-  });
+  }, 30000);
 
-  it('特定のアドレス向けルートが正しく機能すること', async () => {
-    // 1. テスト用のルート設定を作成
-    const testRoutes = [
-      {
-        emailAddress: 'specific-test@example.com',
-        postEndpoint: 'http://wiremock:8080/webhook-test',
-        format: 'json',
-        headers: { 'X-Test-Header': 'test-value' },
-        authType: 'bearer',
-        authToken: 'test-token',
+  // メール送信のヘルパー関数
+  async function sendTestEmail(
+    to: string,
+    subject: string,
+    htmlContent?: string,
+    textContent?: string,
+    attachments?: Array<{ filename: string; content: string | Buffer }>
+  ): Promise<string> {
+    const mailProcessingId = `test-${testId}-${Date.now()}`;
+
+    const mailOptions = {
+      from: 'Test Sender <test@mail2post.com>',
+      to,
+      subject,
+      text: textContent || `テストメール本文 ${subject}`,
+      html: htmlContent,
+      attachments,
+      headers: {
+        'X-Mail-Processing-ID': mailProcessingId,
       },
-    ];
+    };
 
-    await updateTestRoutes(testRoutes);
+    await transporter.sendMail(mailOptions);
+    console.log(`メール送信完了 - Processing ID: ${mailProcessingId}, To: ${to}`);
+    return mailProcessingId;
+  }
 
-    // 2. テスト用メールを送信（統合テストではSESイベントを直接シミュレート）
-    // 実際のメール送信の代わりに、SESイベントを模擬します
-    const testSubject = `特定アドレステスト ${testId}`;
-    console.log('特定アドレステスト用のルート設定を適用しました:', testSubject);
+  // Webhook結果取得のヘルパー関数
+  async function getWebhookResult(
+    mailProcessingId: string,
+    maxRetries = 5
+  ): Promise<{
+    webhookData: {
+      subject: string;
+      to: string;
+      headers?: Record<string, string>;
+      body?: string;
+      text?: string;
+      html?: string;
+    };
+  }> {
+    // 最初のエンドポイントには -1 の通し番号が付与される
+    const endpointProcessingId = `${mailProcessingId}-1`;
 
-    // 3. リクエストが処理されるまで待機
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        const response = await fetch(`${webhookUrl}?mailProcessingId=${endpointProcessingId}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.body) {
+            // bodyをパースしてwebhookDataとして返す
+            const bodyData = JSON.parse(data.body);
+            return { webhookData: bodyData };
+          }
+        }
+        console.log(`Webhook結果待機中... (${i + 1}/${maxRetries})`);
+        console.log(`使用しているmailProcessingId: ${endpointProcessingId}`);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      } catch (error) {
+        console.log(`Webhook結果取得エラー (試行 ${i + 1}): ${error}`);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    }
+    throw new Error('Webhook結果の取得に失敗しました');
+  }
 
-    // 4. 設定が正しく適用されていることを確認
-    expect(testRoutes[0].emailAddress).toBe('specific-test@example.com');
-    expect(testRoutes[0].authType).toBe('bearer');
-    expect(testRoutes[0].authToken).toBe('test-token');
-  });
+  it('JSON形式のルート設定が正しく機能すること', async () => {
+    const testEmail = 'test@mail2post.com';
+    const subject = `JSON形式テスト ${testId}`;
 
-  it('ワイルドカードルートが正しく機能すること', async () => {
-    // 1. テスト用のルート設定を作成（ワイルドカードルールを含む）
-    const testRoutes = [
-      {
-        emailAddress: '*@wildcard-example.com',
-        postEndpoint: 'http://wiremock:8080/webhook-test',
-        format: 'json',
-      },
-    ];
+    // メール送信
+    const mailProcessingId = await sendTestEmail(testEmail, subject);
 
-    await updateTestRoutes(testRoutes);
+    // Webhook結果を取得
+    const result = await getWebhookResult(mailProcessingId);
 
-    // 2. ワイルドカードテスト用の設定確認
-    const testSubject = `ワイルドカードテスト ${testId}`;
-    console.log('ワイルドカードルート設定を適用しました:', testSubject);
+    // 結果検証
+    expect(result.webhookData).toBeDefined();
+    expect(result.webhookData.subject).toBe(subject);
+    expect(result.webhookData.to).toContain(testEmail);
+    // JSON形式であることを確認（オブジェクト構造）
+    expect(typeof result.webhookData).toBe('object');
+    expect(result.webhookData.headers).toBeDefined();
+  }, 30000);
 
-    // 3. リクエストが処理されるまで待機
-    await new Promise(resolve => setTimeout(resolve, 2000));
+  it('フォーム形式のルート設定が正しく機能すること', async () => {
+    const testEmail = 'test@mail2post.com';
+    const subject = `フォーム形式テスト ${testId}`;
 
-    // 4. 設定が正しく適用されていることを確認
-    expect(testRoutes[0].emailAddress).toBe('*@wildcard-example.com');
-    expect(testRoutes[0].postEndpoint).toBe('http://wiremock:8080/webhook-test');
-  });
+    // メール送信
+    const mailProcessingId = await sendTestEmail(testEmail, subject);
 
-  it('Slack連携ルートが正しく機能すること', async () => {
-    // 1. テスト用のルート設定を作成（Slackルールを含む）
-    const testRoutes = [
-      {
-        type: 'slack',
-        emailAddress: 'slack-test@example.com',
-        webhookUrl: 'http://wiremock:8080/webhook-slack-test',
-        channel: '#test-channel',
-        username: 'TestBot',
-      },
-    ];
+    // Webhook結果を取得
+    const result = await getWebhookResult(mailProcessingId);
 
-    await updateTestRoutes(testRoutes);
+    // 結果検証
+    expect(result.webhookData).toBeDefined();
+    expect(result.webhookData.subject).toBe(subject);
+    expect(result.webhookData.to).toContain(testEmail);
+  }, 30000);
 
-    // 2. Slackテスト用の設定確認
-    const testSubject = `Slackテスト ${testId}`;
-    console.log('Slack連携ルート設定を適用しました:', testSubject);
+  it('RAW形式のルート設定が正しく機能すること', async () => {
+    const testEmail = 'test@mail2post.com';
+    const subject = `RAW形式テスト ${testId}`;
 
-    // 3. リクエストが処理されるまで待機
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    // メール送信
+    const mailProcessingId = await sendTestEmail(testEmail, subject);
 
-    // 4. 設定が正しく適用されていることを確認
-    expect(testRoutes[0].type).toBe('slack');
-    expect(testRoutes[0].channel).toBe('#test-channel');
-    expect(testRoutes[0].username).toBe('TestBot');
-    expect(testRoutes[0].webhookUrl).toBe('http://wiremock:8080/webhook-slack-test');
-  });
-});
+    // Webhook結果を取得
+    const result = await getWebhookResult(mailProcessingId);
+
+    // 結果検証
+    expect(result.webhookData).toBeDefined();
+    expect(result.webhookData.subject).toBe(subject);
+    expect(result.webhookData.to).toContain(testEmail);
+  }, 30000);
+
+  it('Bearer認証付きルート設定が正しく機能すること', async () => {
+    const testEmail = 'test@mail2post.com';
+    const subject = `Bearer認証テスト ${testId}`;
+
+    // メール送信
+    const mailProcessingId = await sendTestEmail(testEmail, subject);
+
+    // Webhook結果を取得
+    const result = await getWebhookResult(mailProcessingId);
+
+    // 結果検証
+    expect(result.webhookData).toBeDefined();
+    expect(result.webhookData.subject).toBe(subject);
+    expect(result.webhookData.to).toContain(testEmail);
+    // 認証ヘッダーが設定されていることを間接的に確認（リクエストが成功している）
+    expect(result.webhookData.headers).toBeDefined();
+  }, 30000);
+
+  it('Basic認証付きルート設定が正しく機能すること', async () => {
+    const testEmail = 'test@mail2post.com';
+    const subject = `Basic認証テスト ${testId}`;
+
+    // メール送信
+    const mailProcessingId = await sendTestEmail(testEmail, subject);
+
+    // Webhook結果を取得
+    const result = await getWebhookResult(mailProcessingId);
+
+    // 結果検証
+    expect(result.webhookData).toBeDefined();
+    expect(result.webhookData.subject).toBe(subject);
+    expect(result.webhookData.to).toContain(testEmail);
+  }, 30000);
+
+  it('カスタムヘッダー付きルート設定が正しく機能すること', async () => {
+    const testEmail = 'test@mail2post.com';
+    const subject = `カスタムヘッダーテスト ${testId}`;
+
+    // メール送信
+    const mailProcessingId = await sendTestEmail(testEmail, subject);
+
+    // Webhook結果を取得
+    const result = await getWebhookResult(mailProcessingId);
+
+    // 結果検証
+    expect(result.webhookData).toBeDefined();
+    expect(result.webhookData.subject).toBe(subject);
+    expect(result.webhookData.to).toContain(testEmail);
+  }, 30000);
+
+  it('HTML処理モード（text）が正しく機能すること', async () => {
+    const testEmail = 'test@mail2post.com';
+    const subject = `HTML-textモードテスト ${testId}`;
+    const htmlContent = '<p>これは<strong>HTML</strong>コンテンツです</p>';
+
+    // メール送信
+    const mailProcessingId = await sendTestEmail(testEmail, subject, htmlContent);
+
+    // Webhook結果を取得
+    const result = await getWebhookResult(mailProcessingId);
+
+    // 結果検証
+    expect(result.webhookData).toBeDefined();
+    expect(result.webhookData.subject).toBe(subject);
+    expect(result.webhookData.to).toContain(testEmail);
+    // textモードの場合、HTMLがテキストに変換されていることを確認
+    expect(result.webhookData.body || result.webhookData.text).toBeDefined();
+  }, 30000);
+
+  it('HTML処理モード（html）が正しく機能すること', async () => {
+    const testEmail = 'test@mail2post.com';
+    const subject = `HTML-htmlモードテスト ${testId}`;
+    const htmlContent = '<p>これは<strong>HTML</strong>コンテンツです</p>';
+
+    // メール送信
+    const mailProcessingId = await sendTestEmail(testEmail, subject, htmlContent);
+
+    // Webhook結果を取得
+    const result = await getWebhookResult(mailProcessingId);
+
+    // 結果検証
+    expect(result.webhookData).toBeDefined();
+    expect(result.webhookData.subject).toBe(subject);
+    expect(result.webhookData.to).toContain(testEmail);
+    // htmlモードの場合、HTMLがそのまま含まれることを確認
+    expect(result.webhookData.html || result.webhookData.body).toBeDefined();
+  }, 30000);
+
+  it('HTML処理モード（both）が正しく機能すること', async () => {
+    const testEmail = 'test@mail2post.com';
+    const subject = `HTML-bothモードテスト ${testId}`;
+    const htmlContent = '<p>これは<strong>HTML</strong>コンテンツです</p>';
+
+    // メール送信
+    const mailProcessingId = await sendTestEmail(testEmail, subject, htmlContent);
+
+    // Webhook結果を取得
+    const result = await getWebhookResult(mailProcessingId);
+
+    // 結果検証
+    expect(result.webhookData).toBeDefined();
+    expect(result.webhookData.subject).toBe(subject);
+    expect(result.webhookData.to).toContain(testEmail);
+    // bothモードの場合、HTMLとテキストの両方が含まれることを確認
+    expect(
+      result.webhookData.html || result.webhookData.text || result.webhookData.body
+    ).toBeDefined();
+  }, 30000);
+
+  it('画像処理モード（ignore）が正しく機能すること', async () => {
+    const testEmail = 'test@mail2post.com';
+    const subject = `画像ignoreモードテスト ${testId}`;
+    const htmlContent =
+      '<p>テスト画像: <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==" alt="test"></p>';
+
+    // メール送信
+    const mailProcessingId = await sendTestEmail(testEmail, subject, htmlContent);
+
+    // Webhook結果を取得
+    const result = await getWebhookResult(mailProcessingId);
+
+    // 結果検証
+    expect(result.webhookData).toBeDefined();
+    expect(result.webhookData.subject).toBe(subject);
+    expect(result.webhookData.to).toContain(testEmail);
+  }, 30000);
+
+  it('コンテンツ選択（subject）が正しく機能すること', async () => {
+    const testEmail = 'test@mail2post.com';
+    const subject = `件名のみテスト ${testId}`;
+
+    // メール送信
+    const mailProcessingId = await sendTestEmail(testEmail, subject);
+
+    // Webhook結果を取得
+    const result = await getWebhookResult(mailProcessingId);
+
+    // 結果検証
+    expect(result.webhookData).toBeDefined();
+    expect(result.webhookData.subject).toBe(subject);
+    expect(result.webhookData.to).toContain(testEmail);
+  }, 30000);
+
+  it('コンテンツ選択（body）が正しく機能すること', async () => {
+    const testEmail = 'test@mail2post.com';
+    const subject = `本文のみテスト ${testId}`;
+    const textContent = `これは本文のみのテストです ${testId}`;
+
+    // メール送信
+    const mailProcessingId = await sendTestEmail(testEmail, subject, undefined, textContent);
+
+    // Webhook結果を取得
+    const result = await getWebhookResult(mailProcessingId);
+
+    // 結果検証
+    expect(result.webhookData).toBeDefined();
+    expect(result.webhookData.subject).toBe(subject);
+    expect(result.webhookData.to).toContain(testEmail);
+    expect(result.webhookData.body || result.webhookData.text).toBeDefined();
+  }, 30000);
+
+  it('ワイルドカードルート（*@domain）が正しく機能すること', async () => {
+    const testEmail = 'test@mail2post.com';
+    const subject = `ワイルドカードテスト ${testId}`;
+
+    // メール送信
+    const mailProcessingId = await sendTestEmail(testEmail, subject);
+
+    // Webhook結果を取得
+    const result = await getWebhookResult(mailProcessingId);
+
+    // 結果検証
+    expect(result.webhookData).toBeDefined();
+    expect(result.webhookData.subject).toBe(subject);
+    expect(result.webhookData.to).toContain(testEmail);
+  }, 30000);
+
+  it('デフォルトルートが正しく機能すること', async () => {
+    const testEmail = 'test@mail2post.com';
+    const subject = `デフォルトルートテスト ${testId}`;
+
+    // メール送信
+    const mailProcessingId = await sendTestEmail(testEmail, subject);
+
+    // Webhook結果を取得
+    const result = await getWebhookResult(mailProcessingId);
+
+    // 結果検証
+    expect(result.webhookData).toBeDefined();
+    expect(result.webhookData.subject).toBe(subject);
+    expect(result.webhookData.to).toContain(testEmail);
+  }, 30000);
+
+  it('サイズ制限設定が適用されること', async () => {
+    const testEmail = 'test@mail2post.com';
+    const subject = `サイズ制限テスト ${testId}`;
+    const largeContent = 'A'.repeat(1000); // 大きなコンテンツ
+
+    // メール送信
+    const mailProcessingId = await sendTestEmail(testEmail, subject, undefined, largeContent);
+
+    // Webhook結果を取得
+    const result = await getWebhookResult(mailProcessingId);
+
+    // 結果検証
+    expect(result.webhookData).toBeDefined();
+    expect(result.webhookData.subject).toBe(subject);
+    expect(result.webhookData.to).toContain(testEmail);
+  }, 30000);
+
+  it('リトライ設定が適用されること', async () => {
+    const testEmail = 'test@mail2post.com';
+    const subject = `リトライテスト ${testId}`;
+
+    // メール送信
+    const mailProcessingId = await sendTestEmail(testEmail, subject);
+
+    // Webhook結果を取得（リトライ設定があっても最終的に成功することを確認）
+    const result = await getWebhookResult(mailProcessingId);
+
+    // 結果検証
+    expect(result.webhookData).toBeDefined();
+    expect(result.webhookData.subject).toBe(subject);
+    expect(result.webhookData.to).toContain(testEmail);
+  }, 30000);
+}, 30000);

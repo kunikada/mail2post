@@ -100,6 +100,25 @@ export class FileRouteRepository implements RouteRepository {
   }
 
   /**
+   * メールアドレスに一致する全てのルートを検索
+   */
+  async findAllByEmailAddress(emailAddress: string): Promise<Route[]> {
+    await this.loadRoutesIfNeeded();
+
+    // 完全一致を検索
+    const routes = this.cachedRoutes.filter(r => r.emailAddress === emailAddress);
+
+    // 完全一致があればそれを返す
+    if (routes.length > 0) return routes;
+
+    // ワイルドカード一致を検索 (*@example.com)
+    const emailDomain = emailAddress.split('@')[1];
+    const wildcardRoutes = this.cachedRoutes.filter(r => r.emailAddress === `*@${emailDomain}`);
+
+    return wildcardRoutes;
+  }
+
+  /**
    * デフォルトルートを検索
    */
   async findDefault(): Promise<Route | null> {
@@ -157,6 +176,7 @@ export class FileRouteRepository implements RouteRepository {
           htmlMode: routeData.transformationOptions?.htmlMode,
           inlineImages: routeData.transformationOptions?.inlineImages,
           maxSize: routeData.transformationOptions?.maxSize,
+          contentSelection: routeData.transformationOptions?.contentSelection,
         });
       });
 

@@ -89,12 +89,10 @@ function testWebhookConnection(webhookUrl) {
   const testPayload = {
     test: true,
     timestamp: new Date().toISOString(),
-    testId: 'status-check',
   };
 
   const testCommand = `curl -s -X POST "${webhookUrl}" \\
     -H "Content-Type: application/json" \\
-    -H "X-Test-ID: status-check" \\
     -d '${JSON.stringify(testPayload)}'`;
 
   const result = executeCommand(testCommand, 'Webhook API 接続テスト');
@@ -106,6 +104,9 @@ function testWebhookConnection(webhookUrl) {
         console.log('   ✅ Webhook API は正常に動作しています');
         console.log(`   📝 レスポンス時刻: ${responseData.timestamp}`);
         console.log(`   🔗 Request ID: ${responseData.received?.requestId || 'N/A'}`);
+        console.log(
+          `   📧 Mail Processing ID: ${responseData.received?.mailProcessingId || 'N/A'}`
+        );
         console.log(`   📄 レスポンスボディ長: ${JSON.stringify(responseData).length} 文字`);
         return true;
       } else {

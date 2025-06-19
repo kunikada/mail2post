@@ -63,7 +63,7 @@ functions:
             origin: '*'
             headers:
               - Content-Type
-              - X-Test-ID
+              - X-Mail-Processing-ID
             allowCredentials: false
       - http:
           path: /webhook
@@ -72,7 +72,7 @@ functions:
             origin: '*'
             headers:
               - Content-Type
-              - X-Test-ID
+              - X-Mail-Processing-ID
             allowCredentials: false
       - http:
           path: /webhook
@@ -81,7 +81,7 @@ functions:
             origin: '*'
             headers:
               - Content-Type
-              - X-Test-ID
+              - X-Mail-Processing-ID
             allowCredentials: false
 
 resources:
