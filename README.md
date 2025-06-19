@@ -1,4 +1,4 @@
-[![CI](https://github.com/<OWNER>/<REPO>/actions/workflows/code-quality.yml/badge.svg)](https://github.com/<OWNER>/<REPO>/actions/workflows/code-quality.yml)
+[![CI](https://github.com/kunikada/mail2post/actions/workflows/code-quality.yml/badge.svg)](https://github.com/kunikada/mail2post/actions/workflows/code-quality.yml)
 # Mail2Post Project
 
 Mail2Post is an AWS serverless application that receives emails and sends POST requests to specified URLs.

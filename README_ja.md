@@ -1,4 +1,3 @@
-[![CI](https://github.com/<OWNER>/<REPO>/actions/workflows/code-quality.yml/badge.svg)](https://github.com/<OWNER>/<REPO>/actions/workflows/code-quality.yml)
 # Mail2Post プロジェクト
 
 Mail2Post は、メールを受信して指定のURLにPOSTリクエストを送信するAWSサーバーレスアプリケーションです。
