@@ -133,6 +133,33 @@ export class S3RouteRepository implements RouteRepository {
   }
 
   /**
+   * メールアドレスに一致する全てのルートを検索
+   */
+  async findAllByEmailAddress(emailAddress: string, domain?: string): Promise<Route[]> {
+    await this.loadRoutesIfNeeded();
+
+    if (domain) {
+      // ドメインが指定されている場合は新しいロジックを使用
+      // 完全一致を検索（ユーザー名のみ）
+      const routes = this.cachedRoutes.filter(r => r.matches(emailAddress, domain));
+      return routes;
+    } else {
+      // 従来のロジック（完全なメールアドレス形式）
+      // 完全一致を検索
+      const routes = this.cachedRoutes.filter(r => r.emailAddress === emailAddress);
+
+      // 完全一致があればそれを返す
+      if (routes.length > 0) return routes;
+
+      // ワイルドカード一致を検索 (*@example.com)
+      const emailDomain = emailAddress.split('@')[1];
+      const wildcardRoutes = this.cachedRoutes.filter(r => r.emailAddress === `*@${emailDomain}`);
+
+      return wildcardRoutes;
+    }
+  }
+
+  /**
    * デフォルトルートを検索
    */
   async findDefault(): Promise<Route | null> {

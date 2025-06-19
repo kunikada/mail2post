@@ -144,7 +144,10 @@ npm run test:cleanup:api
 2. **テスト実行**: 結合テストでテスト用APIが使用される
    - Mail2Postからテスト用APIにHTTPリクエストが送信される
    - Lambda関数がリクエスト内容をレスポンスに含めて返却する
-   - X-Test-IDヘッダーでテストごとのリクエストを追跡可能
+   - Mail2PostからのHTTPリクエストにはX-Mail-Processing-IDヘッダーが追加されて一意のリクエストを追跡可能
+   - 保存されたデータは`GET /webhook`で取得可能（以下の方法で指定）：
+     - ヘッダー: `X-Mail-Processing-ID: <処理ID>`
+     - クエリパラメータ: `?mailProcessingId=<処理ID>`
 
 3. **状態確認**: `npm run test:status`で現在の状態を確認
    - API Gateway、Lambdaの状態
@@ -165,8 +168,7 @@ npm run test:cleanup:api
     "url": "https://example-api-gateway.execute-api.us-west-2.amazonaws.com/test/webhook",
     "apiId": "example123",
     "headers": {
-      "Content-Type": "application/json",
-      "X-Test-ID": "${TEST_ID}"
+      "Content-Type": "application/json"
     }
   },
   "aws": {
@@ -222,28 +224,48 @@ npm run deploy:prod
 mail2post/
 ├── .devcontainer/         # Devcontainer設定
 │   ├── devcontainer.json  # VS Code Devcontainer設定
-│   └── Dockerfile         # 開発環境用Dockerコンテナ定義
+│   ├── Dockerfile         # 開発環境用Dockerコンテナ定義
+│   └── docker-compose.yml # Docker Compose設定
 ├── src/                   # ソースコード
+│   ├── index.ts           # メインエントリーポイント
 │   ├── handlers/          # Lambda関数ハンドラー
 │   ├── services/          # ビジネスロジック
 │   ├── domain/            # ドメインモデルとリポジトリ
+│   │   ├── models/        # ドメインモデル
+│   │   └── repositories/  # リポジトリパターン実装
 │   ├── test-api/          # テスト用Webhook API
 │   └── types/             # TypeScript型定義
 ├── tests/                 # テストコード
 │   ├── unit/              # 単体テスト
 │   └── integration/       # 統合テスト
 ├── scripts/               # 管理スクリプト
-│   ├── setup-test-api.js  # テスト用API セットアップ
-│   ├── cleanup-test-api.js # テスト用API クリーンアップ
-│   └── test-api-status.js # テスト用API 状態確認
+│   ├── setup-test-api.cjs # テスト用API セットアップ
+│   ├── cleanup-test-api.cjs # テスト用API クリーンアップ
+│   ├── test-api-status.cjs # テスト用API 状態確認
+│   └── cleanup-resources.cjs # リソースクリーンアップ
 ├── config/                # 設定ファイル
-│   ├── {stage}.json       # 環境別設定
+│   ├── dev.json           # 開発環境設定
+│   ├── prod.json          # 本番環境設定
+│   ├── sendgrid.json      # SendGrid設定
 │   └── test-api.json      # テスト用API設定（自動生成）
 ├── docs/                  # ドキュメント
+│   ├── architecture.md    # アーキテクチャ概要
+│   ├── common-config.md   # 共通設定
+│   ├── implementation-plan.md # 実装計画
+│   ├── requirements.md    # 要件定義
+│   ├── ses-setup-guide.md # SESセットアップガイド
+│   ├── technical-specifications.md # 技術仕様書
+│   └── testing-strategy.md # テスト戦略
 ├── serverless.yml         # メインアプリのServerless設定
 ├── serverless-test-api.yml # テスト用APIのServerless設定
+├── serverless.config.cjs  # Serverless設定（共通）
 ├── tsconfig.json          # TypeScript設定
+├── vitest.config.ts       # Vitestユニットテスト設定
+├── vitest.integration.config.ts # Vitest統合テスト設定
+├── esbuild.config.js      # ESBuildビルド設定
+├── eslint.config.js       # ESLint設定
 ├── package.json           # npm設定
+├── CONTRIBUTING.md        # 開発ガイド
 └── README.md              # プロジェクト概要
 ```
 

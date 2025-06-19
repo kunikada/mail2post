@@ -2,7 +2,7 @@
  * Routeモデルの単体テスト
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { Route } from '@domain/models/Route';
 
 describe('Route', () => {
@@ -29,6 +29,7 @@ describe('Route', () => {
       expect(route.htmlMode).toBe('text');
       expect(route.inlineImages).toBe('ignore');
       expect(route.maxSize).toBeUndefined();
+      expect(route.contentSelection).toBe('full');
     });
 
     it('すべてのプロパティを指定して初期化できる', () => {
@@ -46,6 +47,7 @@ describe('Route', () => {
         htmlMode: 'html' as const,
         inlineImages: 'base64' as const,
         maxSize: 10485760,
+        contentSelection: 'subject' as const,
       };
 
       // 実行
@@ -63,6 +65,7 @@ describe('Route', () => {
       expect(route.htmlMode).toBe(props.htmlMode);
       expect(route.inlineImages).toBe(props.inlineImages);
       expect(route.maxSize).toBe(props.maxSize);
+      expect(route.contentSelection).toBe(props.contentSelection);
       expect(route.getHeader('X-Custom-Header')).toBe('custom-value');
     });
   });
@@ -193,6 +196,67 @@ describe('Route', () => {
           htmlMode: 'both',
           inlineImages: 'base64',
           maxSize: 10485760,
+          contentSelection: 'full',
+        },
+      });
+    });
+  });
+
+  // contentSelectionのテスト
+  describe('contentSelection', () => {
+    it('デフォルトでfullが設定される', () => {
+      const route = new Route({
+        emailAddress: 'test@example.com',
+        postEndpoint: 'https://example.com/webhook',
+      });
+
+      expect(route.contentSelection).toBe('full');
+    });
+
+    it('subjectを指定できる', () => {
+      const route = new Route({
+        emailAddress: 'test@example.com',
+        postEndpoint: 'https://example.com/webhook',
+        contentSelection: 'subject',
+      });
+
+      expect(route.contentSelection).toBe('subject');
+    });
+
+    it('bodyを指定できる', () => {
+      const route = new Route({
+        emailAddress: 'test@example.com',
+        postEndpoint: 'https://example.com/webhook',
+        contentSelection: 'body',
+      });
+
+      expect(route.contentSelection).toBe('body');
+    });
+
+    it('toJSONでcontentSelectionが出力される', () => {
+      const route = new Route({
+        emailAddress: 'test@example.com',
+        postEndpoint: 'https://example.com/webhook',
+        contentSelection: 'subject',
+      });
+
+      const json = route.toJSON();
+
+      expect(json).toEqual({
+        emailAddress: 'test@example.com',
+        postEndpoint: 'https://example.com/webhook',
+        format: 'json',
+        headers: {},
+        authType: 'none',
+        authToken: undefined,
+        retryCount: 3,
+        retryDelay: 1000,
+        isDefault: false,
+        transformationOptions: {
+          htmlMode: 'text',
+          inlineImages: 'ignore',
+          maxSize: undefined,
+          contentSelection: 'subject',
         },
       });
     });

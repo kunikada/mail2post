@@ -2,8 +2,8 @@
  * メール処理サービス
  */
 import type { SESEventRecord } from 'aws-lambda';
+import { randomUUID } from 'crypto';
 import { Email } from '@domain/models/Email';
-// Attachmentは削除（未使用のため）
 import type { Route } from '@domain/models/Route';
 import { HttpRequest } from '@domain/models/HttpRequest';
 import { SlackMessage } from '@domain/models/SlackMessage';
@@ -11,6 +11,9 @@ import type { RouteRepository } from '@domain/repositories/RouteRepository';
 import type { EmailRepository } from '@domain/repositories/EmailRepository';
 
 export class EmailProcessingService {
+  // 同一メールID用のエンドポイントカウンター
+  private static endpointCounters: Record<string, number> = {};
+
   constructor(
     private readonly routeRepository: RouteRepository,
     private readonly emailRepository?: EmailRepository,
@@ -38,15 +41,28 @@ export class EmailProcessingService {
         await this.emailRepository.save(email);
       }
 
-      // 該当するルーティング設定の取得
-      const route = await this.findRoute(email.recipient);
-      if (!route) {
+      // 該当するルーティング設定を全て取得
+      const routes = await this.findAllRoutes(email.recipient);
+      if (!routes || routes.length === 0) {
         // console.log('適切なルーティング設定が見つかりませんでした。処理をスキップします'); // eslint-disable-line no-console
         return { success: false, message: 'ルート設定が見つかりません' };
       }
 
-      // メールを送信
-      return await this.sendToEndpoint(email, route);
+      // 全てのエンドポイントに送信
+      const results = await Promise.all(
+        routes.map((route: Route) => this.sendToEndpoint(email, route))
+      );
+
+      // 少なくとも1つのエンドポイントが成功した場合は全体を成功とみなす
+      const anySuccess = results.some((r: { success: boolean }) => r.success);
+
+      // 全体の結果を返す
+      return {
+        success: anySuccess,
+        message: anySuccess ? '少なくとも1つのエンドポイントが成功' : '全てのエンドポイントが失敗',
+        // 最初の成功結果のステータスコードを返す
+        statusCode: results.find((r: { success: boolean }) => r.success)?.statusCode,
+      };
     } catch (error) {
       // console.error('レコード処理中にエラーが発生しました:', error); // eslint-disable-line no-console
       return {
@@ -87,6 +103,7 @@ export class EmailProcessingService {
   /**
    * メールに対応するルート設定を検索
    * @private
+   * @deprecated `findAllRoutes` を使用してください
    */
   private async findRoute(recipient: string): Promise<Route | null> {
     // 完全一致を検索
@@ -95,6 +112,20 @@ export class EmailProcessingService {
 
     // デフォルトルートを検索
     return await this.routeRepository.findDefault();
+  }
+
+  /**
+   * メールに対応する全てのルート設定を検索
+   * @private
+   */
+  private async findAllRoutes(recipient: string): Promise<Route[]> {
+    // 完全一致を検索
+    const routes = await this.routeRepository.findAllByEmailAddress(recipient);
+    if (routes && routes.length > 0) return routes;
+
+    // デフォルトルートを検索
+    const defaultRoute = await this.routeRepository.findDefault();
+    return defaultRoute ? [defaultRoute] : [];
   }
 
   /**
@@ -138,8 +169,8 @@ export class EmailProcessingService {
       });
     } else {
       // 通常のエンドポイントへのPOST
-      const body = this.prepareBody(email, format);
-      const headers = this.prepareHeaders(route);
+      const body = this.prepareBody(email, format, route);
+      const headers = this.prepareHeaders(route, email);
 
       request = new HttpRequest({
         url: postEndpoint,
@@ -163,42 +194,121 @@ export class EmailProcessingService {
    * 送信するデータを準備
    * @private
    */
-  private prepareBody(email: Email, format: string): Record<string, string> | string {
+  private prepareBody(
+    email: Email,
+    format: string,
+    route: Route
+  ): Record<string, string> | string | object {
+    const contentSelection = route.contentSelection;
+
+    // コンテンツ選択に基づいてデータを準備
+    const selectedData = this.selectEmailContent(email, contentSelection);
+
     switch (format) {
       case 'json': {
-        // EmailのtoJSON()はobject型なので、stringifyして返す
-        return JSON.stringify(email.toJSON());
+        // HttpRequestクラスのserializeBody()でJSON.stringify()されるため、オブジェクトをそのまま返す
+        return selectedData;
       }
       case 'form': {
         // フォームデータとして送信するため、フラットな構造に変換
-        const formData: Record<string, string> = {
-          messageId: email.id,
-          timestamp: email.timestamp.toISOString(),
-          subject: email.subject,
-          from: email.from,
-          to: email.to.join(','),
-          recipient: email.recipient,
-          body: email.textBody,
-        };
-        if (email.cc && email.cc.length > 0) {
-          formData.cc = email.cc.join(',');
-        }
-        return formData;
+        return this.flattenDataForForm(selectedData);
       }
       case 'raw':
       default: {
-        // メール本文をそのまま送信
-        return email.textBody;
+        // コンテンツ選択に応じてテキストを返す
+        if (contentSelection === 'subject') {
+          return email.subject;
+        } else if (contentSelection === 'body') {
+          return email.textBody;
+        } else {
+          // fullの場合はメール本文をそのまま送信
+          return email.textBody;
+        }
       }
     }
+  }
+
+  /**
+   * コンテンツ選択に基づいてメールデータを抽出
+   * @private
+   */
+  private selectEmailContent(email: Email, contentSelection: string): object {
+    switch (contentSelection) {
+      case 'subject':
+        return {
+          subject: email.subject,
+        };
+      case 'body':
+        return {
+          body: email.textBody,
+        };
+      case 'full':
+      default:
+        return email.toJSON();
+    }
+  }
+
+  /**
+   * フォーム送信用にデータをフラット化
+   * @private
+   */
+  private flattenDataForForm(data: object): Record<string, string> {
+    const formData: Record<string, string> = {};
+
+    for (const [key, value] of Object.entries(data)) {
+      if (Array.isArray(value)) {
+        formData[key] = value.join(',');
+      } else if (typeof value === 'object' && value !== null) {
+        // ネストされたオブジェクトをJSON文字列として保存
+        formData[key] = JSON.stringify(value);
+      } else {
+        formData[key] = String(value);
+      }
+    }
+
+    return formData;
   }
 
   /**
    * ヘッダーを準備
    * @private
    */
-  private prepareHeaders(route: Route): Record<string, string> {
+  private prepareHeaders(route: Route, email?: Email): Record<string, string> {
     const headers = { ...route.getHeadersObject() };
+
+    // SESメール受信処理の一意IDを取得または生成してヘッダーに追加
+    if (email) {
+      // メールヘッダーから既存のX-Mail-Processing-IDを取得
+      const existingMailProcessingId = email.getHeader('X-Mail-Processing-ID');
+
+      // 既存のIDがあればそれを使用、なければ新しいUUIDを生成
+      let mailProcessingId = existingMailProcessingId || randomUUID();
+
+      // 同一メールの複数エンドポイント処理の場合、エンドポイントごとに一意のIDを付与
+      if (route.postEndpoint) {
+        // 同一メールIDに対するエンドポイント通し番号を取得・更新
+        const emailId = email.id;
+
+        if (!EmailProcessingService.endpointCounters[emailId]) {
+          EmailProcessingService.endpointCounters[emailId] = 1;
+        } else {
+          EmailProcessingService.endpointCounters[emailId]++;
+        }
+
+        // 通し番号を付与（1つ目のエンドポイントも含めて全てに通し番号を付与）
+        const counter = EmailProcessingService.endpointCounters[emailId];
+        mailProcessingId = `${mailProcessingId}-${counter}`;
+        console.log(`エンドポイント通し番号 ${counter} を付与: ${mailProcessingId}`);
+      }
+
+      headers['X-Mail-Processing-ID'] = mailProcessingId;
+
+      if (existingMailProcessingId) {
+        console.log(`既存のメール処理ID使用: ${mailProcessingId} (メールID: ${email.id})`);
+      } else {
+        console.log(`新規メール処理ID生成: ${mailProcessingId} (メールID: ${email.id})`);
+      }
+    }
 
     // 認証ヘッダーの追加
     if (route.authType === 'basic' && route.authToken) {
