@@ -33,7 +33,7 @@ export interface RouteConfig {
   postEndpoint: string;
   format?: 'json' | 'form' | 'raw';
   headers?: Record<string, string>;
-  authType?: 'none' | 'basic' | 'bearer';
+  authType?: 'none' | 'basic' | 'bearer' | 'apikey';
   authToken?: string;
   retryCount?: number;
   retryDelay?: number;
@@ -71,7 +71,7 @@ export interface RouteData {
   postEndpoint: string;
   format?: 'json' | 'form' | 'raw';
   headers?: Record<string, string>;
-  authType?: 'none' | 'basic' | 'bearer';
+  authType?: 'none' | 'basic' | 'bearer' | 'apikey';
   authToken?: string;
   retryCount?: number;
   retryDelay?: number;

@@ -3,7 +3,7 @@
  */
 
 export type RouteFormat = 'json' | 'form' | 'raw';
-export type AuthType = 'none' | 'basic' | 'bearer';
+export type AuthType = 'none' | 'basic' | 'bearer' | 'apikey';
 export type HtmlMode = 'text' | 'html' | 'both';
 export type InlineImagesMode = 'ignore' | 'base64' | 'urls';
 export type ContentSelection = 'full' | 'subject' | 'body';

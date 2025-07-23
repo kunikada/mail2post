@@ -44,7 +44,6 @@ export class EmailProcessingService {
       // 該当するルーティング設定を全て取得
       const routes = await this.findAllRoutes(email.recipient);
       if (!routes || routes.length === 0) {
-        // console.log('適切なルーティング設定が見つかりませんでした。処理をスキップします'); // eslint-disable-line no-console
         return { success: false, message: 'ルート設定が見つかりません' };
       }
 
@@ -64,7 +63,6 @@ export class EmailProcessingService {
         statusCode: results.find((r: { success: boolean }) => r.success)?.statusCode,
       };
     } catch (error) {
-      // console.error('レコード処理中にエラーが発生しました:', error); // eslint-disable-line no-console
       return {
         success: false,
         message: error instanceof Error ? error.message : String(error),
@@ -187,7 +185,20 @@ export class EmailProcessingService {
     }
 
     // リトライロジックを含む送信処理
-    return await this.sendWithRetry(request, retryCount, retryDelay);
+    const result = await this.sendWithRetry(request, retryCount, retryDelay);
+
+    // エラー時のみ詳細ログを出力
+    if (!result.success) {
+      console.error(`エンドポイント送信失敗: ${postEndpoint}`, {
+        statusCode: result.statusCode,
+        errorMessage: result.message,
+        retries: result.retries,
+        emailId: email.id,
+        recipient: email.recipient,
+      });
+    }
+
+    return result;
   }
 
   /**
@@ -298,16 +309,9 @@ export class EmailProcessingService {
         // 通し番号を付与（1つ目のエンドポイントも含めて全てに通し番号を付与）
         const counter = EmailProcessingService.endpointCounters[emailId];
         mailProcessingId = `${mailProcessingId}-${counter}`;
-        console.log(`エンドポイント通し番号 ${counter} を付与: ${mailProcessingId}`);
       }
 
       headers['X-Mail-Processing-ID'] = mailProcessingId;
-
-      if (existingMailProcessingId) {
-        console.log(`既存のメール処理ID使用: ${mailProcessingId} (メールID: ${email.id})`);
-      } else {
-        console.log(`新規メール処理ID生成: ${mailProcessingId} (メールID: ${email.id})`);
-      }
     }
 
     // 認証ヘッダーの追加
@@ -315,6 +319,8 @@ export class EmailProcessingService {
       headers['Authorization'] = `Basic ${route.authToken}`;
     } else if (route.authType === 'bearer' && route.authToken) {
       headers['Authorization'] = `Bearer ${route.authToken}`;
+    } else if (route.authType === 'apikey' && route.authToken) {
+      headers['x-api-key'] = route.authToken;
     }
 
     return headers;
@@ -373,26 +379,69 @@ export class EmailProcessingService {
           };
         }
 
+        // エラーレスポンスの詳細を取得
+        let errorDetails = '';
+        try {
+          // レスポンスボディを取得（テキストとして）
+          const responseText = await response.text();
+          if (responseText) {
+            errorDetails = ` - レスポンス内容: ${responseText.substring(0, 500)}${
+              responseText.length > 500 ? '...' : ''
+            }`;
+          }
+        } catch (bodyError) {
+          console.warn(`レスポンスボディの取得に失敗: ${bodyError}`);
+        }
+
         // エラーレスポンスの場合
-        lastError = new Error(`HTTP ${response.status}: ${response.statusText}`);
+        lastError = new Error(`HTTP ${response.status}: ${response.statusText}${errorDetails}`);
+
+        // エラー詳細をログ出力
+        console.error(`HTTP送信エラー: ${request.url}`, {
+          statusCode: response.status,
+          statusText: response.statusText,
+          responseBody: errorDetails.replace(' - レスポンス内容: ', ''),
+          attempt: retries + 1,
+          maxRetries: maxRetries + 1,
+        });
 
         // 一時的なエラーの場合だけリトライ（4xx以外）
         if (response.status < 400 || response.status >= 500) {
           retries++;
           if (retries <= maxRetries) {
-            await this.sleep(retryDelay * retries);
+            const sleepTime = retryDelay * retries;
+            console.warn(
+              `${sleepTime}ms後にリトライします (${retries}/${maxRetries}): ${request.url}`
+            );
+            await this.sleep(sleepTime);
             continue;
           }
         } else {
           // 4xxエラーはクライアントエラーなのでリトライしない
+          console.error(
+            `クライアントエラーのためリトライしません: ${response.status} ${response.statusText} (${request.url})`
+          );
           break;
         }
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
+
+        // ネットワークエラーの詳細をログ出力
+        console.error(`HTTP送信時にネットワークエラーが発生: ${request.url}`, {
+          errorName: lastError.name,
+          errorMessage: lastError.message,
+          attempt: retries + 1,
+          maxRetries: maxRetries + 1,
+        });
+
         retries++;
 
         if (retries <= maxRetries) {
-          await this.sleep(retryDelay * retries);
+          const sleepTime = retryDelay * retries;
+          console.warn(
+            `${sleepTime}ms後にリトライします (${retries}/${maxRetries}): ${request.url}`
+          );
+          await this.sleep(sleepTime);
           continue;
         }
       }
@@ -400,8 +449,17 @@ export class EmailProcessingService {
       break;
     }
 
+    // 最終失敗時の詳細ログ
+    console.error(`HTTP送信最終失敗: ${request.url}`, {
+      totalAttempts: retries,
+      finalError: lastError?.message || 'Unknown error',
+      url: request.url,
+    });
+
     return {
       success: false,
+      statusCode:
+        lastError && 'status' in lastError ? (lastError as { status: number }).status : undefined,
       message: lastError ? lastError.message : 'Unknown error',
       retries,
     };

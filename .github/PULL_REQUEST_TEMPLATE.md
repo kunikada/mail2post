@@ -1,9 +1,12 @@
 # Pull Request
 
 ## Description
-Please include a summary of the change and which issue is fixed. Also include relevant motivation and context.
+
+Please include a summary of the change and which issue is fixed. Also include relevant motivation
+and context.
 
 ## Type of change
+
 - [ ] Bug fix
 - [ ] New feature
 - [ ] Breaking change
@@ -11,9 +14,11 @@ Please include a summary of the change and which issue is fixed. Also include re
 - [ ] Other (please describe):
 
 ## How Has This Been Tested?
+
 Please describe the tests that you ran to verify your changes.
 
 ## Checklist
+
 - [ ] My code follows the style guidelines of this project
 - [ ] I have performed a self-review of my own code
 - [ ] I have commented my code, particularly in hard-to-understand areas

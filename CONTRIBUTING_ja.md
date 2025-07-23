@@ -77,7 +77,7 @@ aws configure
 # 開発環境用設定ファイルの確認
 cat config/dev.json
 
-# 本番環境用設定ファイルの確認  
+# 本番環境用設定ファイルの確認
 cat config/prod.json
 ```
 
@@ -196,14 +196,13 @@ npm run fix:all      # ESLintとPrettierの両方で修正
 ```
 
 ### デプロイ
-npm run lint         # ESLintでのチェック
-npm run lint:fix     # ESLintでの自動修正
-npm run format       # Prettierでのフォーマット（srcディレクトリ）
-npm run format:all   # Prettierでのフォーマット（全ファイル）
-npm run format:check # Prettierでのチェックのみ
-npm run lint:all     # ESLintとPrettierの両方でチェック
-npm run fix:all      # ESLintとPrettierの両方で修正
-```
+
+npm run lint # ESLintでのチェックnpm run lint:fix # ESLintでの自動修正npm run format #
+Prettierでのフォーマット（srcディレクトリ）npm run format:all #
+Prettierでのフォーマット（全ファイル）npm run format:check # Prettierでのチェックのみnpm run
+lint:all # ESLintとPrettierの両方でチェックnpm run fix:all # ESLintとPrettierの両方で修正
+
+````
 
 ### デプロイ
 
@@ -216,7 +215,7 @@ npm run deploy:staging
 
 # 本番環境へのデプロイ
 npm run deploy:prod
-```
+````
 
 ## プロジェクト構造
 
@@ -300,6 +299,7 @@ mail2post/
 一般的な問題と解決方法：
 
 ### 開発環境関連
+
 - **デプロイエラー**: AWS認証情報が正しく設定されているか確認
 - **TypeScriptエラー**: `npm run build:clean`を実行して再ビルド
 - **SES設定エラー**: AWSコンソールでSES受信ルールを確認
@@ -308,7 +308,8 @@ mail2post/
 - **Devcontainer内の依存関係エラー**: コンテナ内で`npm install`を再実行
 
 ### テスト用API関連
-- **テスト用APIセットアップエラー**: 
+
+- **テスト用APIセットアップエラー**:
   - AWS認証情報とリージョン設定を確認
   - 必要なIAM権限（CloudFormation、API Gateway、Lambda）があるか確認
   - `npm run test:cleanup:api`でリソースをクリーンアップ後に再実行

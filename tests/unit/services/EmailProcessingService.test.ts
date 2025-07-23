@@ -699,4 +699,46 @@ describe('EmailProcessingService - 複数エンドポイント', () => {
     expect(savedEmails.length).toBe(1);
     expect(savedEmails[0].subject).toBe('All Fail Test');
   });
+
+  // APIキー認証のテスト
+  it('should set x-api-key header for apikey auth type', async () => {
+    // モックリポジトリのセットアップ（APIキー認証）
+    const routeRepository = new MockRouteRepository([
+      new Route({
+        emailAddress: 'test@example.com',
+        postEndpoint: 'https://api.example.com/webhook',
+        format: 'json',
+        authType: 'apikey',
+        authToken: 'test-api-key-123',
+      }),
+    ]);
+    const emailRepository = new MockEmailRepository();
+
+    // サービスの作成
+    const service = new EmailProcessingService(routeRepository, emailRepository, mockFetch);
+
+    // テスト用のSESイベントレコード
+    const record: SESEventRecord = createMockSESRecord({
+      messageId: 'test-message-id',
+      recipient: 'test@example.com',
+      subject: 'API Key Test',
+    });
+
+    // 処理実行
+    const result = await service.processEmail(record);
+
+    // 検証 - 処理が成功することを確認
+    expect(result.success).toBe(true);
+
+    // fetchが呼ばれたことを確認
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+
+    // fetchの引数を確認
+    const [url, options] = mockFetch.mock.calls[0];
+    expect(url).toBe('https://api.example.com/webhook');
+
+    const headers = options?.headers as Record<string, string>;
+    expect(headers['x-api-key']).toBe('test-api-key-123');
+    expect(headers['Content-Type']).toBe('application/json');
+  });
 });

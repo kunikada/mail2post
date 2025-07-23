@@ -5,7 +5,7 @@
 
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { Route } from '@domain/models/Route';
+import { AuthType, Route } from '@domain/models/Route';
 import type { RouteRepository } from '@domain/repositories/RouteRepository';
 import type { RouteConfigData, RouteData } from '@/types';
 
@@ -159,7 +159,16 @@ export class FileRouteRepository implements RouteRepository {
       this.cachedRoutes = config.routes.map((routeData: RouteData) => {
         // デフォルト設定の適用
         if (config.defaults) {
-          routeData = { ...config.defaults, ...routeData };
+          // authオブジェクトを展開
+          const defaults = { ...config.defaults } as RouteData & {
+            auth?: { type?: string; token?: string };
+          };
+          if (defaults.auth) {
+            defaults.authType = defaults.authType || (defaults.auth.type as AuthType);
+            defaults.authToken = defaults.authToken || defaults.auth.token;
+            delete defaults.auth; // authオブジェクトを削除
+          }
+          routeData = { ...defaults, ...routeData };
         }
 
         // Routeドメインモデルのインスタンスを作成
