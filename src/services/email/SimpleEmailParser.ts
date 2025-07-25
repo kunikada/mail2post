@@ -187,7 +187,7 @@ export class SimpleEmailParser {
    */
   private static decodeQuotedPrintable(input: string): string {
     // まず=で始まる16進数エンコードをバイト配列に変換
-    const bytes: number[] = [];
+    const chunks: Buffer[] = [];
     let i = 0;
     while (i < input.length) {
       if (input[i] === '=' && i + 2 < input.length) {
