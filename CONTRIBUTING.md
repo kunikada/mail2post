@@ -111,6 +111,31 @@ npm run test:watch
 npm run test:integration
 ```
 
+## Test Environment
+
+Mail2Post uses multiple testing approaches to ensure quality:
+
+### Types of Tests
+
+- **Unit Tests**: Test individual functions and classes using Vitest in Devcontainer environment
+- **Integration Tests**: Test overall system behavior using actual services in AWS development environment
+
+### Test Execution Commands
+
+```bash
+# Run all unit tests
+npm test
+
+# Run unit tests in watch mode (automatically runs on file changes)
+npm run test:watch
+
+# Run integration tests (requires AWS environment)
+npm run test:integration
+
+# Run tests with coverage
+npm run test:coverage
+```
+
 ### Test API
 
 Integration tests use a dedicated test webhook API to receive and verify requests from Mail2Post.

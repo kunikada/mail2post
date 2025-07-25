@@ -233,25 +233,6 @@ Mail2Post は、メールを受信して指定のURLにPOSTリクエストを送
    POSTリクエストを送信、またはSlack通知を実行
 6. **ログ確認**: 処理結果はCloudWatch Logsで確認可能
 
-## テスト
-
-### テスト環境
-
-Mail2Postでは、以下の2種類のテストを実行できます：
-
-- **ユニットテスト**: Devcontainer環境でVitestを使用
-- **結合テスト**: AWS開発環境で実際のサービスを使用
-
-詳細なテスト戦略とテスト用APIの設定については[開発ガイド](CONTRIBUTING_ja.md)を参照してください。
-
-```bash
-# ユニットテストの実行
-npm test
-
-# 結合テストの実行
-npm run test:integration
-```
-
 ### 注意事項
 
 - AWSリソースの作成・削除には課金が発生します。利用前に[Amazon SESの料金](https://aws.amazon.com/jp/ses/pricing/)もご確認ください。

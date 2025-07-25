@@ -243,26 +243,6 @@ These settings can be specified in the configuration file's `system` section.
    HTTP POST requests, or execute Slack notifications
 6. **Log Confirmation**: Processing results can be confirmed in CloudWatch Logs
 
-## Testing
-
-### Test Environment
-
-Mail2Post can execute the following two types of tests:
-
-- **Unit Tests**: Using Vitest in Devcontainer environment
-- **Integration Tests**: Using actual services in AWS development environment
-
-For detailed testing strategies and test API configuration, refer to the
-[Development Guide](CONTRIBUTING_ja.md).
-
-```bash
-# Run unit tests
-npm test
-
-# Run integration tests
-npm run test:integration
-```
-
 ### Important Notes
 
 - Creating and deleting AWS resources may incur charges. Please review the [Amazon SES Pricing](https://aws.amazon.com/ses/pricing/) before use.
