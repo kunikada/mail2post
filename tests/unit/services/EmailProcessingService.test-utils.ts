@@ -224,13 +224,17 @@ export class MockS3EmailService extends S3EmailService {
   // テスト用にメールデータを設定するメソッド
   setEmailData(messageId: string, data: { text: string; html?: string; subject: string }): void {
     const key = this.generateS3Key(messageId);
-    const parsedMail: ParsedEmail = {
-      text: data.text,
-      html: data.html,
-      subject: data.subject,
+    const parsedMail = this.createParsedEmail(data.text, data.html, data.subject);
+    this.emailData.set(key, parsedMail);
+  }
+
+  private createParsedEmail(text: string, html: string | undefined, subject: string): ParsedEmail {
+    return {
+      text,
+      html,
+      subject,
       attachments: [],
     };
-    this.emailData.set(key, parsedMail);
   }
 
   async getEmailFromS3(_bucketName: string, s3Key: string): Promise<ParsedEmail> {
