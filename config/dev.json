@@ -1,0 +1,64 @@
+{
+  "aws": {
+    "region": "us-east-1",
+    "bucketName": "mail2post-dev"
+  },
+  "routes": [
+    {
+      "emailAddress": "mail-address-for-test",
+      "postEndpoint": "https://test-api-domain/test/webhook",
+      "format": "json",
+      "transformationOptions": {
+        "includeAttachments": true
+      }
+    },
+    {
+      "comment": "This route is for testing multiple endpoints with the same email address",
+      "emailAddress": "multi-mail-address-for-test",
+      "postEndpoint": "https://test-api-domain/test/webhook",
+      "format": "json"
+    },
+    {
+      "comment": "This route is for testing multiple endpoints with the same email address",
+      "emailAddress": "multi-mail-address-for-test",
+      "postEndpoint": "https://test-api-domain/test/webhook",
+      "format": "json"
+    },
+    {
+      "comment": "This route is for testing partial failure handling",
+      "emailAddress": "partial-fail-mail-address-for-test",
+      "postEndpoint": "https://test-api-domain/test/webhook",
+      "format": "json"
+    },
+    {
+      "comment": "This route is for testing partial failure handling with a valid endpoint",
+      "emailAddress": "partial-fail-mail-address-for-test",
+      "postEndpoint": "https://test-api-domain/test/webhook",
+      "format": "json"
+    }
+  ],
+  "defaults": {
+    "format": "json",
+    "retryCount": 3,
+    "retryDelay": 1000,
+    "transformationOptions": {
+      "htmlMode": "text",
+      "inlineImages": "ignore",
+      "maxSize": 10485760,
+      "attachmentStore": false,
+      "allowedSenders": []
+    },
+    "auth": {
+      "type": "none"
+    },
+    "headers": {
+      "X-Source": "mail2post"
+    }
+  },
+  "system": {
+    "logLevel": "debug",
+    "lambdaMemorySize": 128,
+    "lambdaTimeout": 30,
+    "notificationEmail": ""
+  }
+}

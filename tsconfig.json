@@ -40,6 +40,12 @@
       "@services/*": [
         "src/services/*"
       ],
+      "@config/*": [
+        "src/config/*"
+      ],
+      "@config/app": [
+        "src/config/app"
+      ],
       "@types/*": [
         "src/types/*"
       ]

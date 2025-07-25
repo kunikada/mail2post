@@ -1,6 +1,26 @@
 /**
  * Mail2Post型定義
  */
+import type { Attachment } from '@domain/models/Attachment';
+
+// シンプルメールパーサーの型定義
+export interface ParsedEmail {
+  subject?: string;
+  from?: string;
+  to?: string[];
+  cc?: string[];
+  bcc?: string[];
+  messageId?: string;
+  date?: Date;
+  text?: string;
+  html?: string;
+  attachments: Array<{
+    filename?: string;
+    contentType?: string;
+    content: Buffer;
+    size: number;
+  }>;
+}
 
 // メール処理のためのインターフェース
 export interface EmailData {
@@ -19,21 +39,13 @@ export interface EmailData {
   headers: Record<string, string>;
 }
 
-// 添付ファイルのインターフェース
-export interface Attachment {
-  filename: string;
-  contentType: string;
-  size: number;
-  content: unknown; // Bufferまたはbase64エンコードされた文字列
-}
-
 // ルーティング設定のインターフェース
 export interface RouteConfig {
   emailAddress: string;
   postEndpoint: string;
   format?: 'json' | 'form' | 'raw';
   headers?: Record<string, string>;
-  authType?: 'none' | 'basic' | 'bearer';
+  authType?: 'none' | 'basic' | 'bearer' | 'apikey';
   authToken?: string;
   retryCount?: number;
   retryDelay?: number;
@@ -43,6 +55,7 @@ export interface RouteConfig {
     inlineImages?: 'ignore' | 'base64' | 'urls';
     maxSize?: number;
     contentSelection?: 'full' | 'subject' | 'body';
+    allowedSenders?: string[];
   };
 }
 
@@ -71,7 +84,7 @@ export interface RouteData {
   postEndpoint: string;
   format?: 'json' | 'form' | 'raw';
   headers?: Record<string, string>;
-  authType?: 'none' | 'basic' | 'bearer';
+  authType?: 'none' | 'basic' | 'bearer' | 'apikey';
   authToken?: string;
   retryCount?: number;
   retryDelay?: number;
@@ -81,6 +94,7 @@ export interface RouteData {
     inlineImages?: 'ignore' | 'base64' | 'urls';
     maxSize?: number;
     contentSelection?: 'full' | 'subject' | 'body';
+    allowedSenders?: string[];
   };
 }
 
@@ -102,5 +116,59 @@ export interface RouteConfigData {
     lambdaTimeout?: number;
     routesConfigSource?: string;
     notificationEmail?: string;
+  };
+}
+
+/**
+ * アプリケーション設定の型定義
+ */
+export interface AppConfig {
+  aws: {
+    region: string;
+    bucketName: string;
+  };
+  routes: Array<{
+    emailAddress: string;
+    postEndpoint: string;
+    format: string;
+    headers?: Record<string, string>;
+    authType?: string;
+    authToken?: string;
+    retryCount?: number;
+    retryDelay?: number;
+    transformationOptions?: {
+      includeAttachments?: boolean;
+      attachmentReferences?: boolean;
+      htmlMode?: string;
+      inlineImages?: string;
+      maxSize?: number;
+      attachmentStore?: boolean;
+      allowedSenders?: string[];
+      contentSelection?: string;
+    };
+  }>;
+  defaults: {
+    format: string;
+    retryCount: number;
+    retryDelay: number;
+    transformationOptions: {
+      htmlMode: string;
+      inlineImages: string;
+      maxSize: number;
+      attachmentStore: boolean;
+      allowedSenders: string[];
+      contentSelection: string;
+    };
+    auth: {
+      type: string;
+      token?: string;
+    };
+    headers: Record<string, string>;
+  };
+  system: {
+    logLevel: string;
+    lambdaMemorySize: number;
+    lambdaTimeout: number;
+    notificationEmail: string;
   };
 }

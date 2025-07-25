@@ -3,7 +3,7 @@
  */
 
 export type RouteFormat = 'json' | 'form' | 'raw';
-export type AuthType = 'none' | 'basic' | 'bearer';
+export type AuthType = 'none' | 'basic' | 'bearer' | 'apikey';
 export type HtmlMode = 'text' | 'html' | 'both';
 export type InlineImagesMode = 'ignore' | 'base64' | 'urls';
 export type ContentSelection = 'full' | 'subject' | 'body';
@@ -22,6 +22,7 @@ export class Route {
   private readonly imageHandling: InlineImagesMode;
   private readonly sizeLimit?: number;
   private readonly contentType: ContentSelection;
+  private readonly permittedSenders: string[];
 
   constructor(props: {
     emailAddress: string;
@@ -37,6 +38,7 @@ export class Route {
     inlineImages?: InlineImagesMode;
     maxSize?: number;
     contentSelection?: ContentSelection;
+    allowedSenders?: string[];
   }) {
     this.email = props.emailAddress;
     this.endpoint = props.postEndpoint;
@@ -50,6 +52,7 @@ export class Route {
     this.imageHandling = props.inlineImages || 'ignore';
     this.sizeLimit = props.maxSize;
     this.contentType = props.contentSelection || 'full';
+    this.permittedSenders = [...(props.allowedSenders || [])];
 
     // ヘッダーの変換
     this.requestHeaders = new Map<string, string>();
@@ -105,6 +108,10 @@ export class Route {
 
   get headers(): Record<string, string> {
     return this.getHeadersObject();
+  }
+
+  get allowedSenders(): readonly string[] {
+    return this.permittedSenders;
   }
 
   // ヘッダー取得
@@ -173,6 +180,7 @@ export class Route {
         inlineImages: this.imageHandling,
         maxSize: this.sizeLimit,
         contentSelection: this.contentType,
+        allowedSenders: this.permittedSenders,
       },
     };
   }

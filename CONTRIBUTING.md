@@ -4,7 +4,9 @@ This document explains how to contribute to the Mail2Post project.
 
 ## Project Overview
 
-This project implements a system that receives emails via Amazon SES, processes email content with AWS Lambda, and forwards them as HTTP POST requests to specified web services. Infrastructure is managed using the Serverless framework.
+This project implements a system that receives emails via Amazon SES, processes email content with
+AWS Lambda, and forwards them as HTTP POST requests to specified web services. Infrastructure is
+managed using the Serverless framework.
 
 ## Development Documentation
 
@@ -22,7 +24,8 @@ This guide specifically details test API management and deployment procedures fo
 
 ### Prerequisites
 
-- For Node.js, Serverless Framework, and other version requirements, see [docs/common-config.md](docs/common-config.md)
+- For Node.js, Serverless Framework, and other version requirements, see
+  [docs/common-config.md](docs/common-config.md)
 - npm 10.x or higher
 - AWS CLI
 - Docker (when using Devcontainer)
@@ -34,7 +37,9 @@ This guide specifically details test API management and deployment procedures fo
 
 You can build a development environment with Devcontainer using Visual Studio Code and Docker:
 
-1. Install the [Remote - Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) extension in Visual Studio Code
+1. Install the
+   [Remote - Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
+   extension in Visual Studio Code
 2. Clone the repository:
    ```bash
    git clone https://github.com/your-organization/mail2post.git
@@ -42,7 +47,8 @@ You can build a development environment with Devcontainer using Visual Studio Co
    ```
 3. Open the folder in Visual Studio Code
 4. Open the command palette (F1 key) and select `Remote-Containers: Reopen in Container`
-5. When the Devcontainer build is complete, an environment with all necessary dependencies installed will be ready
+5. When the Devcontainer build is complete, an environment with all necessary dependencies installed
+   will be ready
 
 #### Manual Setup
 
@@ -74,7 +80,7 @@ Environment-specific settings are managed in `config/{stage}.json` files:
 # Check development environment configuration file
 cat config/dev.json
 
-# Check production environment configuration file  
+# Check production environment configuration file
 cat config/prod.json
 ```
 
@@ -220,9 +226,7 @@ mail2post/
 │   ├── services/          # Business logic
 │   │   ├── EmailProcessingService.ts
 │   │   ├── config.ts
-│   │   ├── emailParser.ts
-│   │   ├── emailSender.ts
-│   │   └── routeConfig.ts
+│   │   └── s3EmailService.ts
 │   ├── domain/            # Domain models and repositories
 │   │   ├── models/        # Domain models
 │   │   │   ├── Attachment.ts
@@ -331,15 +335,17 @@ mail2post/
 Common problems and solutions:
 
 ### Development Environment Related
+
 - **Deployment Error**: Confirm AWS credentials are configured correctly
 - **TypeScript Error**: Run `npm run build:clean` and rebuild
 - **SES Configuration Error**: Check SES reception rules in AWS console
-- **Devcontainer Build Error**:
-  Confirm Docker is running and check Docker status with `docker info` command
+- **Devcontainer Build Error**: Confirm Docker is running and check Docker status with `docker info`
+  command
 - **Devcontainer Dependency Error**: Re-run `npm install` inside container
 
 ### Test API Related
-- **Test API Setup Error**: 
+
+- **Test API Setup Error**:
   - Check AWS credentials and region configuration
   - Confirm required IAM permissions (CloudFormation, API Gateway, Lambda)
   - Run `npm run test:cleanup:api` to cleanup resources then retry

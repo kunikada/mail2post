@@ -12,6 +12,9 @@ export default defineConfig({
     environment: 'node',
     include: ['tests/**/*.test.ts'],
     exclude: ['tests/**/*.integration.test.ts'],
+    env: {
+      NODE_ENV: 'dev',
+    },
   },
   resolve: {
     alias: [
@@ -30,6 +33,14 @@ export default defineConfig({
       {
         find: '@services',
         replacement: path.resolve(__dirname, 'src/services'),
+      },
+      {
+        find: '@config',
+        replacement: path.resolve(__dirname, 'src/config'),
+      },
+      {
+        find: '@config/app',
+        replacement: path.resolve(__dirname, 'src/config/app'),
       },
       {
         find: '@types',

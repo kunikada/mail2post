@@ -24,8 +24,6 @@ export const processEmailHandler = async (
   _lambdaContext: Context
 ): Promise<void> => {
   try {
-    console.log('受信イベント:', JSON.stringify(event, null, 2));
-
     // メール処理の初期化
     const records = event.Records || [];
     if (records.length === 0) {
@@ -37,8 +35,6 @@ export const processEmailHandler = async (
     for (const record of records) {
       await processRecord(record);
     }
-
-    console.log('すべてのメールの処理が完了しました');
   } catch (error) {
     console.error('メール処理中にエラーが発生しました:', error);
     throw error; // エラーを再スローして、Lambdaが失敗として扱うようにする
@@ -55,14 +51,23 @@ async function processRecord(record: SESEventRecord): Promise<void> {
     // EmailProcessingServiceを使用してメールを処理
     const result = await emailProcessingService.processEmail(record);
 
-    // 処理結果のログ
-    console.log('メール処理結果:', result);
-
+    // エラー時のみ詳細ログを出力
     if (!result.success) {
-      console.warn(`メール処理が失敗しました: ${result.message}`);
+      console.error(`メール処理が失敗しました: MessageID=${record.ses.mail.messageId}`, {
+        recipients: record.ses.receipt.recipients,
+        errorMessage: result.message,
+        statusCode: result.statusCode,
+        retries: result.retries,
+      });
     }
   } catch (error) {
-    console.error('レコード処理中にエラーが発生しました:', error);
+    console.error(`レコード処理中にエラーが発生しました: MessageID=${record.ses.mail.messageId}`, {
+      recipients: record.ses.receipt.recipients,
+      error:
+        error instanceof Error
+          ? { name: error.name, message: error.message, stack: error.stack }
+          : error,
+    });
     throw error;
   }
 }
