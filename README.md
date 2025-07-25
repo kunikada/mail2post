@@ -147,14 +147,16 @@ Configuration example (`config/dev.json`):
 
 These settings can be configured in `defaults.transformationOptions` in the configuration file.
 
-| Setting Name       | Description                                         | Default Value     |
-| ------------------ | --------------------------------------------------- | ----------------- |
-| `htmlMode`         | HTML email processing method (`text`/`html`/`both`) | `text`            |
-| `inlineImages`     | Inline image processing (`ignore`/`base64`/`url`)   | `ignore`          |
-| `maxSize`          | Maximum email size for processing (bytes)           | `10485760` (10MB) |
-| `attachmentStore`  | Attachment file storage (`true`/`false`)            | `false`           |
-| `allowedSenders`   | Array of allowed senders (empty array allows all)   | `[]`              |
-| `contentSelection` | Content to POST (`full`/`subject`/`body`)           | `full`            |
+| Setting Name       | Description                                         | Default Value     | Status      |
+| ------------------ | --------------------------------------------------- | ----------------- | ----------- |
+| `htmlMode`         | HTML email processing method (`text`/`html`/`both`) | `text`            | ✅ Implemented |
+| `inlineImages`     | Inline image processing (`ignore`/`base64`/`url`)   | `ignore`          | 🚧 Not implemented |
+| `maxSize`          | Maximum email size for processing (bytes)           | `10485760` (10MB) | ✅ Implemented |
+| `attachmentStore`  | Attachment file storage (`true`/`false`)            | `false`           | 🚧 Not implemented |
+| `allowedSenders`   | Array of allowed senders (empty array allows all)   | `[]`              | ✅ Implemented |
+| `contentSelection` | Content to POST (`full`/`subject`/`body`)           | `full`            | ✅ Implemented |
+
+> **Note**: Features marked with 🚧 are currently not implemented. Type definitions for these settings are complete, but the actual processing logic will be implemented in phases. Currently, mailparser's default behavior (HTML to text conversion) is applied.
 
 **contentSelection Option Details:**
 
@@ -162,18 +164,59 @@ These settings can be configured in `defaults.transformationOptions` in the conf
 - `subject`: Subject only
 - `body`: Body only
 
+Examples of `format` and `contentSelection` combinations:
+
+- `format: "json"` + `contentSelection: "subject"` → `{"subject": "Subject"}`
+- `format: "form"` + `contentSelection: "body"` → `body=Email body`  
+- `format: "raw"` + `contentSelection: "subject"` → `Subject` (plain text)
+- `format: "raw"` + `contentSelection: "full"` → Entire email in text format
+
 #### Common POST Request Settings (Optional)
 
 These settings can be specified in the configuration file's `defaults` and per-route settings.
 
 | Setting Name | Description                                                | Default Value |
 | ------------ | ---------------------------------------------------------- | ------------- |
-| `format`     | POST data format (`json`/`form`/`multipart`)               | `json`        |
+| `format`     | POST data format (`json`/`form`/`raw`)                     | `json`        |
 | `headers`    | Additional HTTP headers (object format)                    | `{}`          |
 | `auth.type`  | Authentication method (`none`/`bearer`/`basic`/`apikey`)   | `none`        |
 | `auth.token` | Authentication token (required when auth.type is not none) | `""`          |
 | `retryCount` | Maximum retry count on failure                             | `3`           |
 | `retryDelay` | Retry interval (milliseconds)                              | `1000`        |
+
+**format Option Details:**
+
+- `json`: Send email data as JSON object (Content-Type: `application/json`)
+  - Email content is decoded according to appropriate encoding schemes (quoted-printable, base64, etc.) before sending
+  ```json
+  {
+    "id": "message-id",
+    "subject": "Subject",
+    "from": "sender@example.com",
+    "to": ["recipient@example.com"],
+    "body": {
+      "text": "Email body",
+      "html": "<p>HTML email body</p>"
+    },
+    "attachments": [...]
+  }
+  ```
+
+- `form`: Send email data in form format (Content-Type: `application/x-www-form-urlencoded`)
+  - Email content is decoded according to appropriate encoding schemes (quoted-printable, base64, etc.) before sending
+  ```
+  subject=Subject&from=sender@example.com&to=recipient@example.com&body=Email body
+  ```
+
+- `raw`: Send email data as plain text (Content-Type: `text/plain`)
+  ```
+  From: sender@example.com
+  To: recipient@example.com
+  Subject: Subject
+  Date: 2025-07-23T10:00:00.000Z
+
+  Email body
+  ```
 
 #### System Settings
 
@@ -210,7 +253,7 @@ Mail2Post can execute the following two types of tests:
 - **Integration Tests**: Using actual services in AWS development environment
 
 For detailed testing strategies and test API configuration, refer to the
-[Development Guide](CONTRIBUTING.md).
+[Development Guide](CONTRIBUTING_ja.md).
 
 ```bash
 # Run unit tests
@@ -222,10 +265,8 @@ npm run test:integration
 
 ### Important Notes
 
-- Creating and deleting AWS resources incurs charges. Please also check
-  [Amazon SES Pricing](https://aws.amazon.com/ses/pricing/) before use.
-- For detailed development and operation procedures, refer to the
-  [Development Guide](CONTRIBUTING.md).
+- Creating and deleting AWS resources may incur charges. Please review the [Amazon SES Pricing](https://aws.amazon.com/ses/pricing/) before use.
+- For detailed development and operation procedures, refer to the [Development Guide](CONTRIBUTING.md).
 
 ## License
 

@@ -227,15 +227,28 @@ mail2post/
 │   └── docker-compose.yml # Docker Compose設定
 ├── src/                   # ソースコード
 │   ├── index.ts           # メインエントリーポイント
+│   ├── config/            # アプリケーション設定
+│   │   └── app.ts         # アプリケーション設定クラス
 │   ├── handlers/          # Lambda関数ハンドラー
 │   ├── services/          # ビジネスロジック
+│   │   ├── EmailProcessingService.ts # メール処理サービス
+│   │   ├── s3EmailService.ts # S3メールサービス
+│   │   ├── email/         # メール関連サービス
+│   │   └── http/          # HTTP関連サービス
 │   ├── domain/            # ドメインモデルとリポジトリ
 │   │   ├── models/        # ドメインモデル
 │   │   └── repositories/  # リポジトリパターン実装
 │   ├── test-api/          # テスト用Webhook API
+│   │   └── webhook-receiver.ts # Webhookレシーバー
 │   └── types/             # TypeScript型定義
+│       └── index.ts       # 共通型定義
 ├── tests/                 # テストコード
 │   ├── unit/              # 単体テスト
+│   │   ├── domain/        # ドメイン層テスト
+│   │   │   ├── models/    # モデルテスト
+│   │   │   └── repositories/ # リポジトリテスト
+│   │   ├── handlers/      # ハンドラーテスト
+│   │   └── services/      # サービステスト
 │   └── integration/       # 統合テスト
 ├── scripts/               # 管理スクリプト
 │   ├── setup-test-api.cjs # テスト用API セットアップ
@@ -243,18 +256,11 @@ mail2post/
 │   ├── test-api-status.cjs # テスト用API 状態確認
 │   └── cleanup-resources.cjs # リソースクリーンアップ
 ├── config/                # 設定ファイル
-│   ├── dev.json           # 開発環境設定
-│   ├── prod.json          # 本番環境設定
-│   ├── sendgrid.json      # SendGrid設定
+│   ├── dev.json.example   # 開発環境設定例
+│   ├── prod.json.example  # 本番環境設定例
+│   ├── sendgrid.json.example # SendGrid設定例
 │   └── test-api.json      # テスト用API設定（自動生成）
 ├── docs/                  # ドキュメント
-│   ├── architecture.md    # アーキテクチャ概要
-│   ├── common-config.md   # 共通設定
-│   ├── implementation-plan.md # 実装計画
-│   ├── requirements.md    # 要件定義
-│   ├── ses-setup-guide.md # SESセットアップガイド
-│   ├── technical-specifications.md # 技術仕様書
-│   └── testing-strategy.md # テスト戦略
 ├── serverless.yml         # メインアプリのServerless設定
 ├── serverless-test-api.yml # テスト用APIのServerless設定
 ├── serverless.config.cjs  # Serverless設定（共通）
@@ -264,8 +270,12 @@ mail2post/
 ├── esbuild.config.js      # ESBuildビルド設定
 ├── eslint.config.js       # ESLint設定
 ├── package.json           # npm設定
-├── CONTRIBUTING.md        # 開発ガイド
-└── README.md              # プロジェクト概要
+├── CONTRIBUTING.md        # 開発ガイド (English)
+├── CONTRIBUTING_ja.md     # 開発ガイド (日本語)
+├── README.md              # プロジェクト概要 (English)
+├── README_ja.md           # プロジェクト概要 (日本語)
+├── SECURITY.md            # セキュリティポリシー
+└── LICENSE                # ライセンス
 ```
 
 ## コーディング規約

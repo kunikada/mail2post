@@ -16,7 +16,7 @@ import { S3 } from '@aws-sdk/client-s3';
 import { AuthType, Route } from '@domain/models/Route';
 import type { RouteRepository } from '@domain/repositories/RouteRepository';
 import type { RouteConfigData, RouteData } from '@/types';
-import { getCurrentConfig } from '@services/config';
+import { getCurrentConfig } from '@config/app';
 
 export class S3RouteRepository implements RouteRepository {
   private readonly s3Client: S3;
@@ -238,6 +238,7 @@ export class S3RouteRepository implements RouteRepository {
           inlineImages: routeData.transformationOptions?.inlineImages,
           maxSize: routeData.transformationOptions?.maxSize,
           contentSelection: routeData.transformationOptions?.contentSelection,
+          allowedSenders: routeData.transformationOptions?.allowedSenders,
         });
       });
 

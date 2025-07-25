@@ -138,14 +138,16 @@ Mail2Post は、メールを受信して指定のURLにPOSTリクエストを送
 
 これらの設定は、設定ファイルの`defaults.transformationOptions`で設定できます。
 
-| 設定名             | 説明                                          | デフォルト値       |
-| ------------------ | --------------------------------------------- | ------------------ |
-| `htmlMode`         | HTMLメールの処理方式（`text`/`html`/`both`）  | `text`             |
-| `inlineImages`     | インライン画像処理（`ignore`/`base64`/`url`） | `ignore`           |
-| `maxSize`          | 処理対象の最大メールサイズ（バイト）          | `10485760`（10MB） |
-| `attachmentStore`  | 添付ファイルの保存（`true`/`false`）          | `false`            |
-| `allowedSenders`   | 許可する送信元の配列（空配列なら全て許可）    | `[]`               |
-| `contentSelection` | POST送信する内容（`full`/`subject`/`body`）   | `full`             |
+| 設定名             | 説明                                          | デフォルト値       | ステータス |
+| ------------------ | --------------------------------------------- | ------------------ | ---------- |
+| `htmlMode`         | HTMLメールの処理方式（`text`/`html`/`both`）  | `text`             | ✅ 実装済み |
+| `inlineImages`     | インライン画像処理（`ignore`/`base64`/`url`） | `ignore`           | 🚧 未実装   |
+| `maxSize`          | 処理対象の最大メールサイズ（バイト）          | `10485760`（10MB） | ✅ 実装済み |
+| `attachmentStore`  | 添付ファイルの保存（`true`/`false`）          | `false`            | 🚧 未実装   |
+| `allowedSenders`   | 許可する送信元の配列（空配列なら全て許可）    | `[]`               | ✅ 実装済み |
+| `contentSelection` | POST送信する内容（`full`/`subject`/`body`）   | `full`             | ✅ 実装済み |
+
+> **注意**: 🚧マークの機能は現在未実装です。設定項目の型定義は完了していますが、実際の処理ロジックは今後段階的に実装予定です。現在はmailparserのデフォルト動作（HTMLからテキストへの変換）が適用されます。
 
 **contentSelectionオプション詳細:**
 
@@ -153,18 +155,59 @@ Mail2Post は、メールを受信して指定のURLにPOSTリクエストを送
 - `subject`: 件名のみ
 - `body`: 本文のみ
 
+各フォーマットと`contentSelection`の組み合わせ例：
+
+- `format: "json"` + `contentSelection: "subject"` → `{"subject": "件名"}`
+- `format: "form"` + `contentSelection: "body"` → `body=メール本文`  
+- `format: "raw"` + `contentSelection: "subject"` → `件名`（プレーンテキスト）
+- `format: "raw"` + `contentSelection: "full"` → メール全体のテキスト形式
+
 #### POSTリクエスト共通設定（オプション）
 
 これらの設定は、設定ファイルの`defaults`およびルート単位の設定で指定できます。
 
-| 設定名       | 説明                                            | デフォルト値 |
-| ------------ | ----------------------------------------------- | ------------ |
-| `format`     | POSTデータの形式（`json`/`form`/`multipart`）   | `json`       |
-| `headers`    | 追加HTTPヘッダー（オブジェクト形式）            | `{}`         |
-| `auth.type`  | 認証方式（`none`/`bearer`/`basic`/`apikey`）    | `none`       |
-| `auth.token` | 認証トークン（auth.typeがnone以外の場合に必要） | `""`         |
-| `retryCount` | 失敗時の最大リトライ回数                        | `3`          |
-| `retryDelay` | リトライ間隔（ミリ秒）                          | `1000`       |
+| 設定名       | 説明                                      | デフォルト値 |
+| ------------ | ----------------------------------------- | ------------ |
+| `format`     | POSTデータの形式（`json`/`form`/`raw`）   | `json`       |
+| `headers`    | 追加HTTPヘッダー（オブジェクト形式）      | `{}`         |
+| `auth.type`  | 認証方式（`none`/`bearer`/`basic`/`apikey`） | `none`    |
+| `auth.token` | 認証トークン（auth.typeがnone以外の場合に必要） | `""`     |
+| `retryCount` | 失敗時の最大リトライ回数                  | `3`          |
+| `retryDelay` | リトライ間隔（ミリ秒）                    | `1000`       |
+
+**formatオプション詳細:**
+
+- `json`: メールデータをJSONオブジェクトとして送信（Content-Type: `application/json`）
+  - メール内容は適切なエンコード方式（quoted-printable、base64など）でデコードされて送信されます
+  ```json
+  {
+    "id": "message-id",
+    "subject": "件名",
+    "from": "sender@example.com",
+    "to": ["recipient@example.com"],
+    "body": {
+      "text": "メール本文",
+      "html": "<p>HTMLメール本文</p>"
+    },
+    "attachments": [...]
+  }
+  ```
+
+- `form`: メールデータをフォーム形式で送信（Content-Type: `application/x-www-form-urlencoded`）
+  - メール内容は適切なエンコード方式（quoted-printable、base64など）でデコードされて送信されます
+  ```
+  subject=件名&from=sender@example.com&to=recipient@example.com&body=メール本文
+  ```
+
+- `raw`: メールデータをプレーンテキストとして送信（Content-Type: `text/plain`）
+  ```
+  From: sender@example.com
+  To: recipient@example.com
+  Subject: 件名
+  Date: 2025-07-23T10:00:00.000Z
+
+  メール本文
+  ```
 
 #### システム設定
 

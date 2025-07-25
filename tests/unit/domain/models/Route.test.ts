@@ -30,6 +30,7 @@ describe('Route', () => {
       expect(route.inlineImages).toBe('ignore');
       expect(route.maxSize).toBeUndefined();
       expect(route.contentSelection).toBe('full');
+      expect(route.allowedSenders).toEqual([]);
     });
 
     it('すべてのプロパティを指定して初期化できる', () => {
@@ -48,6 +49,7 @@ describe('Route', () => {
         inlineImages: 'base64' as const,
         maxSize: 10485760,
         contentSelection: 'subject' as const,
+        allowedSenders: ['allowed@example.com', '@trusted.com'],
       };
 
       // 実行
@@ -66,6 +68,7 @@ describe('Route', () => {
       expect(route.inlineImages).toBe(props.inlineImages);
       expect(route.maxSize).toBe(props.maxSize);
       expect(route.contentSelection).toBe(props.contentSelection);
+      expect(route.allowedSenders).toEqual(props.allowedSenders);
       expect(route.getHeader('X-Custom-Header')).toBe('custom-value');
     });
   });
@@ -176,6 +179,7 @@ describe('Route', () => {
         htmlMode: 'both',
         inlineImages: 'base64',
         maxSize: 10485760,
+        allowedSenders: ['allowed@example.com', '@trusted.com'],
       });
 
       // 実行
@@ -197,6 +201,7 @@ describe('Route', () => {
           inlineImages: 'base64',
           maxSize: 10485760,
           contentSelection: 'full',
+          allowedSenders: ['allowed@example.com', '@trusted.com'],
         },
       });
     });
@@ -257,8 +262,51 @@ describe('Route', () => {
           inlineImages: 'ignore',
           maxSize: undefined,
           contentSelection: 'subject',
+          allowedSenders: [],
         },
       });
+    });
+  });
+
+  // 新機能のテスト
+  describe('email validation features', () => {
+    it('allowedSendersの設定が正しく反映される', () => {
+      // 準備
+      const route = new Route({
+        emailAddress: 'test@example.com',
+        postEndpoint: 'https://example.com/webhook',
+        allowedSenders: ['sender1@example.com', '@trusted.com', 'sender2@test.com'],
+      });
+
+      // 検証
+      expect(route.allowedSenders).toEqual([
+        'sender1@example.com',
+        '@trusted.com',
+        'sender2@test.com',
+      ]);
+    });
+
+    it('allowedSendersが未設定の場合は空配列になる', () => {
+      // 準備
+      const route = new Route({
+        emailAddress: 'test@example.com',
+        postEndpoint: 'https://example.com/webhook',
+      });
+
+      // 検証
+      expect(route.allowedSenders).toEqual([]);
+    });
+
+    it('maxSizeの設定が正しく反映される', () => {
+      // 準備
+      const route = new Route({
+        emailAddress: 'test@example.com',
+        postEndpoint: 'https://example.com/webhook',
+        maxSize: 5242880, // 5MB
+      });
+
+      // 検証
+      expect(route.maxSize).toBe(5242880);
     });
   });
 });

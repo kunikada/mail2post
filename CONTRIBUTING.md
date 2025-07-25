@@ -226,9 +226,7 @@ mail2post/
 │   ├── services/          # Business logic
 │   │   ├── EmailProcessingService.ts
 │   │   ├── config.ts
-│   │   ├── emailParser.ts
-│   │   ├── emailSender.ts
-│   │   └── routeConfig.ts
+│   │   └── s3EmailService.ts
 │   ├── domain/            # Domain models and repositories
 │   │   ├── models/        # Domain models
 │   │   │   ├── Attachment.ts

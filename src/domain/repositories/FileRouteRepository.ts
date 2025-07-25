@@ -186,6 +186,7 @@ export class FileRouteRepository implements RouteRepository {
           inlineImages: routeData.transformationOptions?.inlineImages,
           maxSize: routeData.transformationOptions?.maxSize,
           contentSelection: routeData.transformationOptions?.contentSelection,
+          allowedSenders: routeData.transformationOptions?.allowedSenders,
         });
       });
 
