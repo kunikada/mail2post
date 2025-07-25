@@ -43,7 +43,7 @@ export class EmailValidator {
     const allowedSenders = route.allowedSenders;
     if (!allowedSenders || allowedSenders.length === 0) return; // 制限が設定されていない場合はスキップ
 
-    const senderEmail = email.from;
+    const senderEmail = this.extractEmailAddress(email.from);
 
     // 完全一致チェック
     if (allowedSenders.includes(senderEmail)) {
