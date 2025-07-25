@@ -3,6 +3,7 @@
  */
 import { Email } from '@domain/models/Email';
 import type { Route } from '@domain/models/Route';
+import { SimpleEmailParser } from './SimpleEmailParser';
 
 export class EmailValidator {
   /**
@@ -43,7 +44,7 @@ export class EmailValidator {
     const allowedSenders = route.allowedSenders;
     if (!allowedSenders || allowedSenders.length === 0) return; // 制限が設定されていない場合はスキップ
 
-    const senderEmail = this.extractEmailAddress(email.from);
+    const senderEmail = SimpleEmailParser.extractEmailAddress(email.from);
 
     // 完全一致チェック
     if (allowedSenders.includes(senderEmail)) {

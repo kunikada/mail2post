@@ -186,9 +186,10 @@ export class SimpleEmailParser {
    * Quoted-Printableデコード
    */
   private static decodeQuotedPrintable(input: string): string {
-    // まず=で始まる16進数エンコードをバイト配列に変換
+    // Bufferを使って効率的にデコード
     const chunks: Buffer[] = [];
     let i = 0;
+
     while (i < input.length) {
       if (input[i] === '=' && i + 2 < input.length) {
         if (input.slice(i, i + 3) === '=\r\n') {
@@ -198,18 +199,17 @@ export class SimpleEmailParser {
         }
         const hex = input.slice(i + 1, i + 3);
         if (/^[0-9A-F]{2}$/i.test(hex)) {
-          bytes.push(parseInt(hex, 16));
+          chunks.push(Buffer.from([parseInt(hex, 16)]));
           i += 3;
           continue;
         }
       }
-      bytes.push(input.charCodeAt(i));
+      chunks.push(Buffer.from([input.charCodeAt(i)]));
       i++;
     }
 
-    // バイト配列をUTF-8文字列に変換
-    const buffer = Buffer.from(bytes);
-    return buffer.toString('utf8').replace(/\r\n/g, '\n');
+    // Bufferを結合してUTF-8文字列として返す
+    return Buffer.concat(chunks).toString('utf8').replace(/\r\n/g, '\n');
   }
 
   /**
@@ -291,5 +291,21 @@ export class SimpleEmailParser {
       }
     }
     return undefined;
+  }
+
+  /**
+   * メールアドレス文字列からメールアドレス部分を抽出する
+   * "名前 <email@example.com>" -> "email@example.com"
+   * "email@example.com" -> "email@example.com"
+   */
+  static extractEmailAddress(from: string): string {
+    // <email@example.com> 形式の場合
+    const match = from.match(/<([^>]+)>/);
+    if (match) {
+      return match[1];
+    }
+
+    // そのままメールアドレスの場合
+    return from.trim();
   }
 }
