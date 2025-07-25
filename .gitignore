@@ -21,6 +21,7 @@ build/
 
 # Configuration files
 config/*.json
+!config/dev.json
 
 # IDE
 .vscode/settings.json
