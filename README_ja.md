@@ -27,6 +27,10 @@ Mail2Post は、メールを受信して指定のURLにPOSTリクエストを送
   - 詳細な手順は[SES受信設定ガイド](docs/ses-setup-guide.md)を参照してください
 - [common-config.md](docs/common-config.md)に記載のバージョン要件を満たしたNode.js/Serverless環境
 - AWS CLIの認証情報が設定済み
+  （未設定の場合は以下のコマンドで設定してください）
+  ```bash
+  aws configure
+  ```
 
 ### セットアップ手順
 

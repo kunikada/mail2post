@@ -32,6 +32,10 @@ URLs.
 - Node.js/Serverless environment meeting version requirements listed in
   [common-config.md](docs/common-config.md)
 - AWS CLI credentials configured
+  (If not configured, set up using the following command:)
+  ```bash
+  aws configure
+  ```
 
 ### Setup Procedure
 
