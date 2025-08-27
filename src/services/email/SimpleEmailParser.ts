@@ -156,6 +156,7 @@ export class SimpleEmailParser {
 
     // エンコードされた本文をデコード
     let decodedBody = this.decodeBody(body, contentTransferEncoding);
+    let convertedBody: string | undefined;
 
     // charsetがutf-8以外ならencoding-japaneseで変換
     if (charset !== 'utf-8' && charset !== 'us-ascii') {
