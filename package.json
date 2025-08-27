@@ -1,6 +1,6 @@
 {
   "name": "mail2post",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "メール受信からHTTP POSTへの転送システム",
   "main": "index.js",
   "type": "module",
@@ -50,7 +50,8 @@
     "@aws-sdk/client-cloudformation": "^3.848.0",
     "@aws-sdk/client-lambda": "^3.851.0",
     "@aws-sdk/client-s3": "^3.850.0",
-    "@aws-sdk/client-ses": "^3.848.0"
+    "@aws-sdk/client-ses": "^3.848.0",
+    "encoding-japanese": "^2.2.0"
   },
   "devDependencies": {
     "@aws-sdk/client-cloudwatch-logs": "^3.849.0",
