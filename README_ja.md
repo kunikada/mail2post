@@ -27,6 +27,10 @@ Mail2Post は、メールを受信して指定のURLにPOSTリクエストを送
   - 詳細な手順は[SES受信設定ガイド](docs/ses-setup-guide.md)を参照してください
 - [common-config.md](docs/common-config.md)に記載のバージョン要件を満たしたNode.js/Serverless環境
 - AWS CLIの認証情報が設定済み
+  （未設定の場合は以下のコマンドで設定してください）
+  ```bash
+  aws configure
+  ```
 
 ### セットアップ手順
 
@@ -232,25 +236,6 @@ Mail2Post は、メールを受信して指定のURLにPOSTリクエストを送
 5. **POST送信**: 特定されたルートの設定に従って、メール内容を解析しHTTP
    POSTリクエストを送信、またはSlack通知を実行
 6. **ログ確認**: 処理結果はCloudWatch Logsで確認可能
-
-## テスト
-
-### テスト環境
-
-Mail2Postでは、以下の2種類のテストを実行できます：
-
-- **ユニットテスト**: Devcontainer環境でVitestを使用
-- **結合テスト**: AWS開発環境で実際のサービスを使用
-
-詳細なテスト戦略とテスト用APIの設定については[開発ガイド](CONTRIBUTING_ja.md)を参照してください。
-
-```bash
-# ユニットテストの実行
-npm test
-
-# 結合テストの実行
-npm run test:integration
-```
 
 ### 注意事項
 

@@ -32,6 +32,10 @@ URLs.
 - Node.js/Serverless environment meeting version requirements listed in
   [common-config.md](docs/common-config.md)
 - AWS CLI credentials configured
+  (If not configured, set up using the following command:)
+  ```bash
+  aws configure
+  ```
 
 ### Setup Procedure
 
@@ -242,26 +246,6 @@ These settings can be specified in the configuration file's `system` section.
 5. **POST Sending**: According to the identified route configuration, analyze email content and send
    HTTP POST requests, or execute Slack notifications
 6. **Log Confirmation**: Processing results can be confirmed in CloudWatch Logs
-
-## Testing
-
-### Test Environment
-
-Mail2Post can execute the following two types of tests:
-
-- **Unit Tests**: Using Vitest in Devcontainer environment
-- **Integration Tests**: Using actual services in AWS development environment
-
-For detailed testing strategies and test API configuration, refer to the
-[Development Guide](CONTRIBUTING_ja.md).
-
-```bash
-# Run unit tests
-npm test
-
-# Run integration tests
-npm run test:integration
-```
 
 ### Important Notes
 

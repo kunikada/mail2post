@@ -24,7 +24,6 @@ config/*.json
 !config/dev.json
 
 # IDE
-.vscode/settings.json
 .idea/
 *.swp
 *.swo

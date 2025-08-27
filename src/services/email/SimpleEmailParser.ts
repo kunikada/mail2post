@@ -4,6 +4,7 @@
  */
 
 import type { ParsedEmail } from '@/types';
+import encodingJapanese from 'encoding-japanese';
 
 export class SimpleEmailParser {
   /**
@@ -137,6 +138,13 @@ export class SimpleEmailParser {
       size: number;
     }> = [];
 
+    // charset抽出
+    let charset = 'utf-8';
+    const charsetMatch = contentType.match(/charset=["']?([^"';\s]+)/i);
+    if (charsetMatch) {
+      charset = charsetMatch[1].toLowerCase();
+    }
+
     // multipartの場合
     if (contentType.includes('multipart/')) {
       const boundaryMatch = contentType.match(/boundary=["']?([^"';]+)["']?/i);
@@ -147,7 +155,37 @@ export class SimpleEmailParser {
     }
 
     // エンコードされた本文をデコード
-    const decodedBody = this.decodeBody(body, contentTransferEncoding);
+    let decodedBody = this.decodeBody(body, contentTransferEncoding);
+
+    // charsetがutf-8以外ならencoding-japaneseで変換
+    if (charset !== 'utf-8' && charset !== 'us-ascii') {
+      try {
+        // encoding-japaneseはBuffer不要、stringでOK
+        let fromType = '';
+        switch (charset) {
+          case 'iso-2022-jp':
+            fromType = 'ISO2022JP';
+            break;
+          case 'shift_jis':
+          case 'shift-jis':
+            fromType = 'SJIS';
+            break;
+          case 'euc-jp':
+            fromType = 'EUCJP';
+            break;
+          default:
+            fromType = charset.toUpperCase();
+            break;
+        }
+        decodedBody = encodingJapanese.convert(decodedBody, {
+          from: fromType,
+          to: 'UTF8',
+          type: 'string',
+        });
+      } catch (e) {
+        console.warn(`Character encoding conversion failed for charset: ${charset}`, e);
+      }
+    }
 
     // シンプルなテキスト/HTMLメール
     if (contentType.includes('text/html')) {

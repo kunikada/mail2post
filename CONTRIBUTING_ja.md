@@ -108,6 +108,31 @@ npm run test:watch
 npm run test:integration
 ```
 
+## テスト環境
+
+Mail2Postでは複数のテスト手法を組み合わせて品質を保証しています：
+
+### テストの種類
+
+- **ユニットテスト**: Devcontainer環境でVitestを使用し、個別の関数やクラスをテスト
+- **結合テスト**: AWS開発環境で実際のサービスを使用し、システム全体の動作をテスト
+
+### テスト実行コマンド
+
+```bash
+# 全てのユニットテストを実行
+npm test
+
+# ユニットテストをウォッチモードで実行（ファイル変更時に自動実行）
+npm run test:watch
+
+# 結合テストを実行（AWS環境が必要）
+npm run test:integration
+
+# テストカバレッジを含むテストを実行
+npm run test:coverage
+```
+
 ### テスト用API
 
 結合テストでは、専用のテスト用Webhook APIを使用してMail2Postからのリクエストを受信・検証します。
