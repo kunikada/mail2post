@@ -183,7 +183,7 @@ export class SimpleEmailParser {
           type: 'string',
         });
       } catch (e) {
-        console.warn(`charset変換失敗: ${charset}`, e);
+        console.warn(`Character encoding conversion failed for charset: ${charset}`, e);
       }
     }
 
